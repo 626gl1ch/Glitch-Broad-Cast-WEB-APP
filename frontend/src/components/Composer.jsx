@@ -34,7 +34,7 @@ const BRAND_VOICES = [
 ];
 
 export default function Composer() {
-  const [baseContent, setBaseContent] = useState("");
+  const [baseContent, setBaseContent] = useState(() => localStorage.getItem("glitch_composer_draft") || "");
   const [selectedPlatforms, setSelectedPlatforms] = useState(["linkedin", "facebook_page", "facebook_group"]);
   const [brandVoice, setBrandVoice] = useState("dev");
   const [attachedImage, setAttachedImage] = useState(null);
@@ -49,6 +49,11 @@ export default function Composer() {
   const [scheduleDate, setScheduleDate] = useState("");
 
   useEffect(() => {
+    // Clear draft once loaded
+    if (localStorage.getItem("glitch_composer_draft")) {
+      localStorage.removeItem("glitch_composer_draft");
+    }
+
     const saved = localStorage.getItem("glitch_fb_groups");
     if (saved) {
       try {
@@ -93,8 +98,14 @@ export default function Composer() {
       });
       setVariants(result.variants || []);
     } catch (err) {
-      console.warn("Using local generator fallback:", err.message);
-      const mockVariants = generateMockVariants(baseContent, selectedPlatforms, brandVoice);
+      console.warn("Using fallback generator:", err.message);
+      const mockVariants = selectedPlatforms.map((p) => ({
+        id: `v-${p}-${Date.now()}`,
+        platform: p,
+        content: baseContent + `\n\nAutomated via Glitch Broadcast.`,
+        hashtags: ["glitch", "automation", "tech"],
+        created_at: new Date().toISOString()
+      }));
       setVariants(mockVariants);
     } finally {
       setGenerating(false);
@@ -103,6 +114,20 @@ export default function Composer() {
 
   const updateVariantText = (id, content) => {
     setVariants((vs) => vs.map((v) => (v.id === id ? { ...v, content } : v)));
+  };
+
+  const logActivity = (type, platform, text) => {
+    try {
+      const log = JSON.parse(localStorage.getItem("glitch_activity_log") || "[]");
+      log.unshift({
+        id: `act-${Date.now()}`,
+        type,
+        platform,
+        text,
+        time: new Date().toISOString()
+      });
+      localStorage.setItem("glitch_activity_log", JSON.stringify(log.slice(0, 50)));
+    } catch (e) {}
   };
 
   const publish = async (variant) => {
@@ -116,6 +141,7 @@ export default function Composer() {
         const newQueueItems = targetGroups.map(g => ({
           id: `q-${Date.now()}-${g.id}`,
           group_url: g.url,
+          group_name: g.name,
           status: "queued",
           created_at: new Date().toISOString(),
           post_variants: {
@@ -127,9 +153,12 @@ export default function Composer() {
         const updatedQueue = [...newQueueItems, ...existingQueue];
         localStorage.setItem("glitch_group_queue", JSON.stringify(updatedQueue));
 
-        alert(`Successfully queued post across ${targetGroups.length} Facebook Groups! Switch to the Groups tab to execute assisted posting.`);
+        logActivity("publish", "facebook_group", `Queued across ${targetGroups.length} FB Groups: "${variant.content.substring(0,40)}..."`);
+        alert(`Successfully queued post across ${targetGroups.length} Facebook Groups! Navigating to Groups tab to execute.`);
+        window.dispatchEvent(new CustomEvent('nav-change', { detail: 'groups' }));
       } else {
         await api.publishVariant(variant.id, attachedImage?.url);
+        logActivity("publish", variant.platform, `Published: "${variant.content.substring(0,50)}..."`);
         alert(`Successfully published to ${variant.platform}!`);
       }
     } catch (err) {
@@ -137,10 +166,23 @@ export default function Composer() {
     }
   };
 
-  const handleScheduleSubmit = async (variantId) => {
+  const handleScheduleSubmit = async (variant) => {
     if (!scheduleDate) return alert("Select a date and time first.");
     try {
-      await api.schedulePost(variantId, new Date(scheduleDate).toISOString());
+      const scheduledItem = {
+        id: `sch-${Date.now()}`,
+        scheduled_for: new Date(scheduleDate).toISOString(),
+        content: variant.content,
+        base_content: baseContent,
+        platform: variant.platform,
+        created_at: new Date().toISOString()
+      };
+
+      const existingScheduled = JSON.parse(localStorage.getItem("glitch_scheduled_posts") || "[]");
+      const updatedScheduled = [scheduledItem, ...existingScheduled];
+      localStorage.setItem("glitch_scheduled_posts", JSON.stringify(updatedScheduled));
+
+      logActivity("schedule", variant.platform, `Scheduled for ${new Date(scheduleDate).toLocaleString()}: "${variant.content.substring(0,40)}..."`);
       alert(`Successfully scheduled for ${new Date(scheduleDate).toLocaleString()}!`);
       setSchedulingPostId(null);
       setScheduleDate("");
@@ -351,7 +393,7 @@ export default function Composer() {
                         value={v.content}
                         onChange={(e) => updateVariantText(v.id, e.target.value)}
                         rows={5}
-                        className="w-full bg-[#121215] border border-transparent rounded-[24px] px-5 py-4 text-[13px] leading-relaxed text-white outline-none focus:border-accent/50 shadow-inner transition-all resize-none"
+                        className="w-full bg-[#121215] border border-transparent rounded-[24px] px-5 py-4 text-[13px] leading-relaxed text-white outline-none focus:border-accent/50 shadow-inner transition-all resize-none font-sans"
                       />
 
                       {/* Hashtags block */}
@@ -362,6 +404,33 @@ export default function Composer() {
                               #{tag}
                             </span>
                           ))}
+                        </div>
+                      )}
+
+                      {/* Scheduling Form Block */}
+                      {schedulingPostId === v.id && (
+                        <div className="p-4 rounded-2xl bg-[#121215] border border-accent/30 space-y-3 animate-in fade-in">
+                          <label className="block text-xs font-bold text-white font-mono uppercase">Select Date & Time</label>
+                          <input
+                            type="datetime-local"
+                            value={scheduleDate}
+                            onChange={(e) => setScheduleDate(e.target.value)}
+                            className="w-full bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-accent font-mono"
+                          />
+                          <div className="flex items-center justify-end gap-2 pt-2">
+                            <button
+                              onClick={() => setSchedulingPostId(null)}
+                              className="px-3 py-1.5 text-xs text-muted hover:text-white cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleScheduleSubmit(v)}
+                              className="px-4 py-1.5 bg-accent text-[#121215] font-bold text-xs rounded-xl cursor-pointer"
+                            >
+                              Save Schedule
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -430,16 +499,4 @@ export default function Composer() {
 
     </div>
   );
-}
-
-function generateMockVariants(baseContent, platforms) {
-  return platforms.map((p) => {
-    return {
-      id: `v-${p}-${Date.now()}`,
-      platform: p,
-      content: baseContent + `\n\n[Adapted for ${p.replace('_', ' ')}]`,
-      hashtags: ["glitchbroadcast", "socialmedia", "ai"],
-      created_at: new Date().toISOString()
-    };
-  });
 }

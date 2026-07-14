@@ -17,6 +17,117 @@ const getAppKeys = () => {
   }
 };
 
+const getActiveAiProvider = () => {
+  return localStorage.getItem("glitch_active_ai") || "gemini";
+};
+
+// Safety instruction enforcing Google Generative AI Prohibited Use Policy (Dec 17, 2024 update)
+const SAFETY_POLICY_PROMPT = `
+CRITICAL SAFETY & PROHIBITED USE POLICY:
+Do not generate content that:
+1. Relates to child sexual abuse, exploitation, non-consensual intimate imagery, or self-harm.
+2. Facilitates violent extremism, terrorism, violence, or hate speech.
+3. Facilitates illegal activities, dangerous acts, or unauthorized tracking.
+4. Facilitates spam, phishing, malware, or security disruption.
+5. Engages in fraud, scams, impersonation, or misleading sensitive claims.
+`;
+
+// Direct Client AI Dispatcher (Gemini, Claude, DeepSeek)
+async function dispatchDirectAiCall(systemPrompt, userPrompt) {
+  const keys = getAppKeys();
+  const provider = getActiveAiProvider();
+
+  // 1. GEMINI ENGINE
+  if (provider === "gemini") {
+    const apiKey = keys.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Gemini API key is missing. Add it in Settings.");
+    const model = keys.GEMINI_MODEL || "gemini-2.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    const fullPrompt = `${systemPrompt}\n\n${SAFETY_POLICY_PROMPT}\n\nUser Request: ${userPrompt}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+        ]
+      })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error?.message || `Gemini HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  }
+
+  // 2. CLAUDE (ANTHROPIC) ENGINE
+  if (provider === "claude") {
+    const apiKey = keys.CLAUDE_API_KEY;
+    if (!apiKey) throw new Error("Claude API key is missing. Add it in Settings.");
+    const model = keys.CLAUDE_MODEL || "claude-3-5-sonnet-20241022";
+    const url = "https://api.anthropic.com/v1/messages";
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "dangerously-allow-browser": "true"
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 1500,
+        system: `${systemPrompt}\n${SAFETY_POLICY_PROMPT}`,
+        messages: [{ role: "user", content: userPrompt }]
+      })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error?.message || `Claude HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.content?.[0]?.text || "";
+  }
+
+  // 3. DEEPSEEK ENGINE
+  if (provider === "deepseek") {
+    const apiKey = keys.DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error("DeepSeek API key is missing. Add it in Settings.");
+    const model = keys.DEEPSEEK_MODEL || "deepseek-chat";
+    const url = "https://api.deepseek.com/chat/completions";
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: `${systemPrompt}\n${SAFETY_POLICY_PROMPT}` },
+          { role: "user", content: userPrompt }
+        ]
+      })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error?.message || `DeepSeek HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || "";
+  }
+
+  throw new Error("No active AI provider configured.");
+}
+
 // Safe request wrapper that prevents network/DNS crashes
 async function safeReq(path, options = {}) {
   const BASE = getBaseUrl();
@@ -67,30 +178,20 @@ export const api = {
     try {
       return await safeReq("/chat", { method: "POST", body: JSON.stringify({ message }) });
     } catch (_) {
-      const keys = getAppKeys();
-      const geminiKey = keys.GEMINI_API_KEY;
-      if (geminiKey) {
-        try {
-          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-          const res = await fetch(geminiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `You are Glitch AI, a social media automation assistant for Glitch EnterPrice. Answer strategically and concisely: "${message}"` }] }]
-            })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || "Response generated.";
-            return { ok: true, response: answer, created_at: new Date().toISOString() };
-          }
-        } catch (e) {}
+      try {
+        const replyText = await dispatchDirectAiCall(
+          "You are Glitch AI, an expert marketing & social media automation assistant for Glitch EnterPrice. Respond helpful, concise, and strategically.",
+          message
+        );
+        return { ok: true, response: replyText, reply: replyText, created_at: new Date().toISOString() };
+      } catch (err) {
+        return {
+          ok: true,
+          response: `[AI Connection Notice] ${err.message}`,
+          reply: `[AI Connection Notice] ${err.message}`,
+          created_at: new Date().toISOString()
+        };
       }
-      return {
-        ok: true,
-        response: `[Glitch AI Studio] Received: "${message}". Please enter your Gemini API key in Settings to unlock live conversational AI!`,
-        created_at: new Date().toISOString()
-      };
     }
   },
 
@@ -116,59 +217,43 @@ export const api = {
     try {
       return await safeReq("/compose/generate", { method: "POST", body: JSON.stringify(payload) });
     } catch (err) {
-      const keys = getAppKeys();
-      const geminiKey = keys.GEMINI_API_KEY;
-      if (geminiKey) {
-        try {
-          const prompt = `You are a social media strategist for Glitch EnterPrice.
-Core Idea: "${payload.baseContent}"
-Selected Channels: ${payload.platforms.join(", ")}
+      try {
+        const prompt = `Core Post Idea: "${payload.baseContent}"
+Target Channels: ${payload.platforms.join(", ")}
 Voice instructions: ${payload.brandVoiceNotes || "engaging tech developer"}
 
-Respond with valid JSON mapping each platform to content and hashtags array:
+Respond with STRICT JSON mapping each platform to content and hashtags array:
 {
   "linkedin": { "content": "text", "hashtags": ["tag1"] },
   "facebook_page": { "content": "text", "hashtags": ["tag1"] },
   "instagram": { "content": "text", "hashtags": ["tag1"] },
   "facebook_group": { "content": "text", "hashtags": ["tag1"] }
 }`;
-          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-          const res = await fetch(geminiUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-            const parsed = JSON.parse(rawText);
-            const formattedVariants = payload.platforms.map(p => {
-              const item = parsed[p] || { content: payload.baseContent, hashtags: [] };
-              return {
-                id: `v-${p}-${Date.now()}`,
-                platform: p,
-                content: item.content || payload.baseContent,
-                hashtags: item.hashtags || [],
-                created_at: new Date().toISOString()
-              };
-            });
-            return { ok: true, variants: formattedVariants };
-          }
-        } catch (e) {}
-      }
+        const aiText = await dispatchDirectAiCall("You write tailored social media posts for Glitch EnterPrice.", prompt);
+        const cleanJson = aiText.replace(/```json|```/g, "").trim();
+        const parsed = JSON.parse(cleanJson);
 
-      // Default high-converting fallback variants when offline
-      const fallbackVariants = (payload.platforms || ["facebook_page"]).map(p => ({
-        id: `v-${p}-${Date.now()}`,
-        platform: p,
-        content: `${payload.baseContent}\n\nAutomated via Glitch Broadcast AI Suite.`,
-        hashtags: ["#glitch", "#automation", "#tech"],
-        created_at: new Date().toISOString()
-      }));
-      return { ok: true, variants: fallbackVariants };
+        const formattedVariants = payload.platforms.map(p => {
+          const item = parsed[p] || { content: payload.baseContent, hashtags: [] };
+          return {
+            id: `v-${p}-${Date.now()}`,
+            platform: p,
+            content: item.content || payload.baseContent,
+            hashtags: item.hashtags || [],
+            created_at: new Date().toISOString()
+          };
+        });
+        return { ok: true, variants: formattedVariants };
+      } catch (e) {
+        const fallbackVariants = (payload.platforms || ["facebook_page"]).map(p => ({
+          id: `v-${p}-${Date.now()}`,
+          platform: p,
+          content: `${payload.baseContent}\n\nAutomated via Glitch Broadcast AI.`,
+          hashtags: ["glitch", "automation", "tech"],
+          created_at: new Date().toISOString()
+        }));
+        return { ok: true, variants: fallbackVariants };
+      }
     }
   },
 

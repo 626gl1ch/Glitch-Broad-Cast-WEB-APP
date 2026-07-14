@@ -18,8 +18,7 @@ import {
   Cpu,
   Link2,
   Activity,
-  Check,
-  Zap
+  Bot
 } from "lucide-react";
 
 const PLATFORM_CARDS = [
@@ -30,10 +29,36 @@ const PLATFORM_CARDS = [
     color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
     portalUrl: "https://aistudio.google.com/apikey",
     portalText: "Get Free Gemini API Key",
-    desc: "Powers post variations generation, alt-text creation, and AI strategic brainstorming chat.",
+    desc: "Google's high-speed multimodal AI. Powers post variations, alt-text creation, and strategy chat.",
     fields: [
       { env: "GEMINI_API_KEY", label: "Gemini API Key", placeholder: "AIzaSy...", type: "password" },
-      { env: "GEMINI_MODEL", label: "AI Model (Default: gemini-2.5-flash)", placeholder: "gemini-2.5-flash", type: "text" }
+      { env: "GEMINI_MODEL", label: "Gemini Model (Default: gemini-2.5-flash)", placeholder: "gemini-2.5-flash", type: "text" }
+    ]
+  },
+  {
+    id: "claude",
+    title: "Claude AI (Anthropic)",
+    icon: Bot,
+    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+    portalUrl: "https://console.anthropic.com/settings/keys",
+    portalText: "Anthropic Console",
+    desc: "Advanced reasoning and nuanced natural language content generation powered by Claude 3.5 Sonnet.",
+    fields: [
+      { env: "CLAUDE_API_KEY", label: "Claude API Key", placeholder: "sk-ant-api03-...", type: "password" },
+      { env: "CLAUDE_MODEL", label: "Claude Model (Default: claude-3-5-sonnet-20241022)", placeholder: "claude-3-5-sonnet-20241022", type: "text" }
+    ]
+  },
+  {
+    id: "deepseek",
+    title: "DeepSeek AI Engine",
+    icon: Cpu,
+    color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+    portalUrl: "https://platform.deepseek.com/api_keys",
+    portalText: "DeepSeek API Platform",
+    desc: "Open-weights cost-effective reasoning model. Excellent for coding, technical copy, and quantitative posts.",
+    fields: [
+      { env: "DEEPSEEK_API_KEY", label: "DeepSeek API Key", placeholder: "sk-...", type: "password" },
+      { env: "DEEPSEEK_MODEL", label: "DeepSeek Model (Default: deepseek-chat)", placeholder: "deepseek-chat", type: "text" }
     ]
   },
   {
@@ -109,6 +134,7 @@ export default function Settings() {
   const [testing, setTesting] = useState(false);
   const [testResults, setTestResults] = useState({});
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem("backendUrl") || "");
+  const [activeAiProvider, setActiveAiProvider] = useState(() => localStorage.getItem("glitch_active_ai") || "gemini");
   const [envValues, setEnvValues] = useState({});
   const [isSavingEnv, setIsSavingEnv] = useState(false);
   const [envMessage, setEnvMessage] = useState(null);
@@ -131,6 +157,11 @@ export default function Settings() {
     window.location.reload();
   };
 
+  const handleAiProviderChange = (provider) => {
+    setActiveAiProvider(provider);
+    localStorage.setItem("glitch_active_ai", provider);
+  };
+
   const handleEnvChange = (envKey, value) => {
     setEnvValues(prev => ({ ...prev, [envKey]: value }));
   };
@@ -140,7 +171,8 @@ export default function Settings() {
     setEnvMessage(null);
     try {
       localStorage.setItem("glitch_keys", JSON.stringify(envValues));
-      setEnvMessage({ type: "success", text: "All API keys & social credentials saved successfully to browser storage!" });
+      localStorage.setItem("glitch_active_ai", activeAiProvider);
+      setEnvMessage({ type: "success", text: "All API keys, AI model engine choices & social credentials saved successfully!" });
       setTimeout(() => setEnvMessage(null), 3500);
     } catch (error) {
       setEnvMessage({ type: "error", text: "Failed to save: " + error.message });
@@ -164,7 +196,7 @@ export default function Settings() {
       });
       setTestResults(results);
       setTesting(false);
-    }, 1200);
+    }, 1000);
   };
 
   const filteredCards = PLATFORM_CARDS.filter(c => activeCategory === "all" || c.id === activeCategory);
@@ -184,7 +216,7 @@ export default function Settings() {
             API Keys & Social Media Integrations
           </h1>
           <p className="text-muted text-[13px] mt-1.5 font-light leading-relaxed">
-            Link your social platform tokens, Google Gemini AI key, Supabase database, and Google AdSense credentials.
+            Configure your Gemini, Claude, or DeepSeek AI engine and link your social platform connection tokens.
           </p>
         </div>
 
@@ -196,7 +228,7 @@ export default function Settings() {
             className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-5 py-3.5 rounded-full transition-all shrink-0 shadow-lg bg-surface hover:bg-white/10 text-white border border-white/10 cursor-pointer"
           >
             {testing ? <RefreshCw size={16} className="animate-spin text-accent" /> : <Activity size={16} className="text-accent" />}
-            <span>{testing ? "Testing Connections..." : "Test All Connections"}</span>
+            <span>{testing ? "Testing Connections..." : "Test Connections"}</span>
           </button>
 
           <button
@@ -210,7 +242,7 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Save Success Alert Banner */}
+      {/* Save Alert Banner */}
       {envMessage && (
         <div className={`max-w-6xl mx-auto mb-6 p-4 rounded-2xl border flex items-center justify-between shadow-lg relative z-10 animate-in fade-in duration-200 ${
           envMessage.type === "success" ? "bg-signal/10 border-signal/30 text-signal" : "bg-alert/10 border-alert/30 text-alert"
@@ -222,6 +254,46 @@ export default function Settings() {
           <span className="text-[10px] font-mono uppercase bg-white/10 px-2 py-0.5 rounded-full">Encrypted Local Storage</span>
         </div>
       )}
+
+      {/* Primary AI Provider Selector Banner */}
+      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+          <div className="flex items-center gap-2.5">
+            <Bot size={20} className="text-accent" />
+            <h3 className="text-base font-bold text-white tracking-wide">
+              Active Primary AI Engine Engine
+            </h3>
+          </div>
+          <span className="text-[10px] font-mono uppercase bg-accent/10 text-accent px-3 py-1 rounded-full border border-accent/20 font-bold">
+            Selected: {activeAiProvider.toUpperCase()}
+          </span>
+        </div>
+        <p className="text-xs text-muted">
+          Choose which AI model powers post variant generation, strategic brainstorming chat, and alt-text creation across your Command Center:
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { id: "gemini", name: "Google Gemini AI", desc: "Multimodal, high-speed, free tier key", color: "border-purple-500/40 bg-purple-500/10" },
+            { id: "claude", name: "Anthropic Claude AI", desc: "Claude 3.5 Sonnet reasoning & nuances", color: "border-amber-500/40 bg-amber-500/10" },
+            { id: "deepseek", name: "DeepSeek AI Engine", desc: "DeepSeek Chat / Quant reasoning", color: "border-cyan-500/40 bg-cyan-500/10" }
+          ].map(provider => (
+            <button
+              key={provider.id}
+              onClick={() => handleAiProviderChange(provider.id)}
+              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                activeAiProvider === provider.id ? `${provider.color} text-white font-bold shadow-lg` : "bg-[#121215] border-white/5 text-muted hover:text-white"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-bold">{provider.name}</span>
+                {activeAiProvider === provider.id && <CheckCircle2 size={16} className="text-accent" />}
+              </div>
+              <p className="text-[11px] font-normal opacity-80">{provider.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Backend & Cloudflare Edge API URL Banner */}
       <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 flex flex-col md:flex-row md:items-end justify-between gap-6 shadow-xl relative z-10">

@@ -30,17 +30,16 @@ export default function Scheduler() {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   const load = () => {
-    api.getCalendar()
-      .then((data) => {
-        if (data && data.length > 0) {
-          setScheduled(data);
-        } else {
-          setScheduled(getMockScheduled());
-        }
-      })
-      .catch(() => {
-        setScheduled(getMockScheduled());
-      });
+    const saved = localStorage.getItem("glitch_scheduled_posts");
+    if (saved) {
+      try {
+        setScheduled(JSON.parse(saved));
+      } catch (e) {
+        setScheduled([]);
+      }
+    } else {
+      setScheduled([]);
+    }
   };
 
   useEffect(() => {
@@ -48,9 +47,34 @@ export default function Scheduler() {
   }, []);
 
   const deleteSchedule = (id) => {
-    // Simulated deletion
-    setScheduled((prev) => prev.filter((p) => p.id !== id));
+    const updated = scheduled.filter((p) => p.id !== id);
+    setScheduled(updated);
+    localStorage.setItem("glitch_scheduled_posts", JSON.stringify(updated));
     setSelectedEvent(null);
+  };
+
+  const forceBroadcast = async (event) => {
+    try {
+      await api.publishVariant(event.id);
+      
+      // Log the real publish activity
+      const log = (() => {
+        try { return JSON.parse(localStorage.getItem("glitch_activity_log") || "[]"); } catch { return []; }
+      })();
+      log.unshift({
+        id: `act-${Date.now()}`,
+        type: "publish",
+        platform: event.platform || "social_channel",
+        text: `Published: "${(event.content || event.base_content || "").substring(0, 50)}..."`,
+        time: new Date().toISOString()
+      });
+      localStorage.setItem("glitch_activity_log", JSON.stringify(log.slice(0, 50)));
+
+      alert("Signal broadcasted live to social channel!");
+      deleteSchedule(event.id);
+    } catch (err) {
+      alert(`Broadcast error: ${err.message}`);
+    }
   };
 
   // Group events by day of week
@@ -73,8 +97,7 @@ export default function Scheduler() {
   return (
     <div className="p-5 md:p-8 relative min-h-screen bg-[#121215] pb-32">
       {/* Background glow */}
-      <div className="glow-blob w-[600px] h-[600px] bg-accent/10 -bottom-20 -left-10 opacity-40" />
-      <div className="glow-blob w-[400px] h-[400px] bg-accent/5 top-20 right-0 opacity-40" />
+      <div className="glow-blob w-[600px] h-[600px] bg-accent/10 -bottom-20 -left-10 opacity-40 pointer-events-none" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 max-w-7xl mx-auto relative z-10">
@@ -86,7 +109,7 @@ export default function Scheduler() {
             Scheduler
           </h1>
           <p className="text-muted text-[13px] mt-1.5 font-light">
-            View, reschedule, and delete automatically queued platform broadcasts.
+            View, reschedule, and force broadcast queued social media updates.
           </p>
         </div>
 
@@ -95,16 +118,16 @@ export default function Scheduler() {
           <div className="flex items-center gap-2 bg-surface border border-white/5 rounded-full p-2 shadow-lg backdrop-blur-md">
             <button 
               onClick={() => setActiveWeekOffset(o => o - 1)}
-              className="p-2.5 rounded-full hover:bg-white/10 text-muted hover:text-white transition-all duration-300"
+              className="p-2.5 rounded-full hover:bg-white/10 text-muted hover:text-white transition-all duration-300 cursor-pointer"
             >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-[12px] font-bold px-3 text-white min-w-[160px] text-center select-none tracking-wide">
+            <span className="text-[12px] font-bold px-3 text-white min-w-[160px] text-center select-none tracking-wide font-mono">
               {getWeekRangeLabel()}
             </span>
             <button 
               onClick={() => setActiveWeekOffset(o => o + 1)}
-              className="p-2.5 rounded-full hover:bg-white/10 text-muted hover:text-white transition-all duration-300"
+              className="p-2.5 rounded-full hover:bg-white/10 text-muted hover:text-white transition-all duration-300 cursor-pointer"
             >
               <ChevronRight size={18} />
             </button>
@@ -143,31 +166,26 @@ export default function Scheduler() {
                     onClick={() => setSelectedEvent(event)}
                     className="p-4 rounded-[20px] bg-[#121215] border border-transparent hover:border-accent/40 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_15px_rgba(176,139,255,0.15)] space-y-3 relative overflow-hidden group shadow-inner"
                   >
-                    <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-white/[0.05] to-transparent rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="flex items-center justify-between relative z-10">
-                      <span className="text-[10px] font-bold text-muted bg-surface px-2.5 py-1 rounded-full shadow-sm">
+                      <span className="text-[10px] font-bold text-muted bg-surface px-2.5 py-1 rounded-full shadow-sm font-mono">
                         {new Date(event.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      <div className="flex gap-1.5">
-                        {event.post_variants?.map((v) => {
-                          const meta = PLATFORM_ICONS[v.platform] || { icon: Users, color: "text-muted" };
-                          const Icon = meta.icon;
-                          return (
-                            <div key={v.id} className="p-1 rounded-md bg-surface shadow-inner">
-                              <Icon size={12} className={meta.color} />
-                            </div>
-                          );
-                        })}
+                      <div className="p-1 rounded-md bg-surface shadow-inner">
+                        {PLATFORM_ICONS[event.platform]?.icon ? (
+                          React.createElement(PLATFORM_ICONS[event.platform].icon, { size: 12, className: PLATFORM_ICONS[event.platform].color })
+                        ) : (
+                          <Users size={12} className="text-accent" />
+                        )}
                       </div>
                     </div>
                     <p className="text-[12px] text-muted group-hover:text-white transition-colors leading-relaxed line-clamp-3 relative z-10">
-                      {event.base_content}
+                      {event.content || event.base_content}
                     </p>
                   </div>
                 ))}
                 
                 {events.length === 0 && (
-                  <div className="h-full flex items-center justify-center py-12 text-[10px] font-bold text-muted/50 uppercase tracking-wider text-center border border-dashed border-white/5 rounded-[20px] bg-white/[0.01]">
+                  <div className="h-full flex items-center justify-center py-12 text-[10px] font-bold text-muted/30 uppercase tracking-wider text-center border border-dashed border-white/5 rounded-[20px] bg-white/[0.01]">
                     empty
                   </div>
                 )}
@@ -183,72 +201,41 @@ export default function Scheduler() {
           <div className="bg-surface max-w-xl w-full rounded-[32px] p-8 space-y-6 border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative">
             <div className="flex items-center justify-between border-b border-white/5 pb-4">
               <h3 className="text-base font-bold text-white uppercase flex items-center gap-3">
-                <Clock size={18} className="text-accent" /> Broadcast Details
+                <Clock size={18} className="text-accent" /> Scheduled Item Details
               </h3>
               <button 
                 onClick={() => setSelectedEvent(null)}
-                className="text-muted hover:text-white text-xs bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-all font-bold"
+                className="text-muted hover:text-white text-xs bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-all font-bold cursor-pointer"
               >
                 ✕ Close
               </button>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold text-muted tracking-wider">Scheduled Time</p>
+              <p className="text-xs font-bold text-muted tracking-wider uppercase font-mono">Scheduled Time</p>
               <p className="text-sm text-white font-mono bg-[#121215] px-5 py-3 rounded-[20px] border border-transparent shadow-inner inline-block">
                 {new Date(selectedEvent.scheduled_for).toLocaleString()}
               </p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold text-muted tracking-wider">Base Content</p>
+              <p className="text-xs font-bold text-muted tracking-wider uppercase font-mono">Content</p>
               <p className="text-[13px] text-white/90 leading-relaxed bg-[#121215] p-5 rounded-[24px] border border-transparent shadow-inner">
-                {selectedEvent.base_content}
+                {selectedEvent.content || selectedEvent.base_content}
               </p>
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-muted tracking-wider">Distribution Targets</p>
-              <div className="grid grid-cols-2 gap-3">
-                {selectedEvent.post_variants?.map((v) => {
-                  const meta = PLATFORM_ICONS[v.platform] || { icon: Users, color: "text-muted", bg: "bg-white/5", border: "border-white/5" };
-                  const Icon = meta.icon;
-                  return (
-                    <div key={v.id} className="flex items-center justify-between p-3.5 rounded-[20px] bg-[#121215] border border-transparent hover:border-white/5 transition-colors shadow-inner">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-[12px] bg-surface shadow-sm`}>
-                          <Icon size={16} className={meta.color} />
-                        </div>
-                        <span className="capitalize text-white font-bold text-xs">{v.platform.replace("_", " ")}</span>
-                      </div>
-                      <span className="text-[10px] font-bold text-signal bg-signal/10 px-2 py-1 rounded-md">
-                        Ready
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
 
             {/* Modal Actions */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-white/5">
               <button
                 onClick={() => deleteSchedule(selectedEvent.id)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 text-xs font-bold text-alert bg-alert/10 hover:bg-alert/20 px-5 py-3.5 rounded-full transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 text-xs font-bold text-alert bg-alert/10 hover:bg-alert/20 px-5 py-3.5 rounded-full transition-colors cursor-pointer"
               >
                 <Trash2 size={16} /> Unschedule
               </button>
               <button
-                onClick={() => {
-                  if (checkUsageLimit()) {
-                    window.dispatchEvent(new Event("glitch-usage-change"));
-                    return;
-                  }
-                  alert("Signal broadcasted instantly!");
-                  deleteSchedule(selectedEvent.id);
-                  incrementUsageCount();
-                }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 text-xs font-bold text-[#121215] bg-accent px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg"
+                onClick={() => forceBroadcast(selectedEvent)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 text-xs font-bold text-[#121215] bg-accent px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
               >
                 <Send size={16} /> Force Broadcast Now
               </button>
@@ -260,41 +247,4 @@ export default function Scheduler() {
 
     </div>
   );
-}
-
-function getMockScheduled() {
-  const getDayAtHour = (dayOffset, hour) => {
-    const d = new Date();
-    d.setDate(d.getDate() + dayOffset);
-    d.setHours(hour, 0, 0, 0);
-    return d.toISOString();
-  };
-
-  return [
-    {
-      id: "sch-1",
-      scheduled_for: getDayAtHour(1, 10), // Tomorrow 10am
-      base_content: "Backtesting stateful Bybit scripts on 5m candles. High win rate setup.",
-      post_variants: [
-        { id: "sv-1", platform: "linkedin" },
-        { id: "sv-2", platform: "facebook_page" }
-      ]
-    },
-    {
-      id: "sch-2",
-      scheduled_for: getDayAtHour(3, 14), // In 3 days 2pm
-      base_content: "Refactoring database indexes on Supabase postgres tables. Latency reduced.",
-      post_variants: [
-        { id: "sv-3", platform: "instagram" }
-      ]
-    },
-    {
-      id: "sch-3",
-      scheduled_for: getDayAtHour(5, 17), // In 5 days 5pm
-      base_content: "Reviewing FB Groups automated Chrome posting with Puppeteer profile.",
-      post_variants: [
-        { id: "sv-4", platform: "facebook_group" }
-      ]
-    }
-  ];
 }

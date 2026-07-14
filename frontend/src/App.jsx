@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import MobileNav from "./components/MobileNav";
 import TermsModal from "./components/TermsModal";
@@ -27,6 +27,32 @@ const VIEWS = {
 export default function App() {
   const [active, setActive] = useState("dashboard");
   const [session, setSession] = useState(null);
+
+  // CRITICAL FIX: Listen to nav-change custom events from child components
+  useEffect(() => {
+    const handleNavChange = (e) => {
+      const target = e.detail;
+      if (target && VIEWS[target]) {
+        setActive(target);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+    window.addEventListener("nav-change", handleNavChange);
+    return () => window.removeEventListener("nav-change", handleNavChange);
+  }, []);
+
+  // Load draft from playbook "Send to Composer"
+  useEffect(() => {
+    const handleStorage = () => {
+      const draft = localStorage.getItem("glitch_composer_draft");
+      if (draft) {
+        setActive("composer");
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const View = VIEWS[active];
 
   return (
