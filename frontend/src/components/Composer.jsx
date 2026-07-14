@@ -15,7 +15,8 @@ import {
   CheckSquare,
   Square,
   MessageSquareCode,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Sliders
 } from "lucide-react";
 import { api } from "../api";
 
@@ -26,7 +27,7 @@ const PLATFORMS = [
   { id: "facebook_group", label: "FB Groups", icon: Users, maxChar: 5000, desc: "Community cross-posting" },
 ];
 
-const BRAND_VOICES = [
+const DEFAULT_BRAND_VOICES = [
   { id: "dev", label: "Solo Dev / Build in Public", instructions: "Nigerian solo developer showing technical progress, clean engineering, no fluff, no fake hype. Use simple language." },
   { id: "trading", label: "Algo Trader Spec", instructions: "Quantitative trader discussing backtests, risk parameters, pine scripts, statistics. Avoid financial advice." },
   { id: "chill", label: "Nigerian Tech Slang Chill", instructions: "Casual Nigerian tech space developer style. Use words like 'active', 'we ran it', 'no cap', 'shipped'." },
@@ -37,6 +38,7 @@ export default function Composer() {
   const [baseContent, setBaseContent] = useState(() => localStorage.getItem("glitch_composer_draft") || "");
   const [selectedPlatforms, setSelectedPlatforms] = useState(["linkedin", "facebook_page", "facebook_group"]);
   const [brandVoice, setBrandVoice] = useState("dev");
+  const [allVoices, setAllVoices] = useState(DEFAULT_BRAND_VOICES);
   const [attachedImage, setAttachedImage] = useState(null);
   
   // Facebook Group Multi-Select State
@@ -52,6 +54,14 @@ export default function Composer() {
     // Clear draft once loaded
     if (localStorage.getItem("glitch_composer_draft")) {
       localStorage.removeItem("glitch_composer_draft");
+    }
+
+    // Load custom brand voices from Settings
+    try {
+      const custom = JSON.parse(localStorage.getItem("glitch_brand_voices") || "[]");
+      setAllVoices([...DEFAULT_BRAND_VOICES, ...custom]);
+    } catch (e) {
+      setAllVoices(DEFAULT_BRAND_VOICES);
     }
 
     const saved = localStorage.getItem("glitch_fb_groups");
@@ -88,7 +98,7 @@ export default function Composer() {
     if (!baseContent.trim() || selectedPlatforms.length === 0) return;
     setGenerating(true);
     
-    const selectedVoice = BRAND_VOICES.find(v => v.id === brandVoice)?.instructions || "";
+    const selectedVoice = allVoices.find(v => v.id === brandVoice)?.instructions || "";
     
     try {
       const result = await api.generateVariants({
@@ -102,7 +112,7 @@ export default function Composer() {
       const mockVariants = selectedPlatforms.map((p) => ({
         id: `v-${p}-${Date.now()}`,
         platform: p,
-        content: baseContent + `\n\nAutomated via Glitch Broadcast.`,
+        content: baseContent + `\n\nAutomated via Glitch Broadcast AI.`,
         hashtags: ["glitch", "automation", "tech"],
         created_at: new Date().toISOString()
       }));
@@ -250,14 +260,23 @@ export default function Composer() {
 
               {/* Brand Voice Selector */}
               <div className="space-y-3">
-                <label className="text-xs font-semibold text-white">Brand Voice Preset</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-white">Brand Voice Preset</label>
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('nav-change', { detail: 'settings' }))}
+                    className="text-[11px] font-mono text-accent hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sliders size={11} /> Customize Presets
+                  </button>
+                </div>
                 <select
                   value={brandVoice}
                   onChange={(e) => setBrandVoice(e.target.value)}
                   className="w-full bg-[#121215] rounded-[20px] px-4 py-4 text-[13px] text-white outline-none focus:border-accent/50 border border-transparent transition-all cursor-pointer shadow-inner font-sans"
                 >
-                  {BRAND_VOICES.map((v) => (
-                    <option key={v.id} value={v.id}>{v.label}</option>
+                  {allVoices.map((v) => (
+                    <option key={v.id} value={v.id}>{v.label} {v.isCustom ? "★ Custom" : ""}</option>
                   ))}
                 </select>
               </div>

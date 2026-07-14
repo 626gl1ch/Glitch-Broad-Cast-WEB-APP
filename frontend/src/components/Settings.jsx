@@ -18,126 +18,40 @@ import {
   Cpu,
   Link2,
   Activity,
-  Bot
+  Bot,
+  Plus,
+  Trash2,
+  Edit3,
+  Sliders,
+  Send,
+  Radio
 } from "lucide-react";
 
-const PLATFORM_CARDS = [
-  {
-    id: "gemini",
-    title: "Google Gemini AI Suite",
-    icon: KeyRound,
-    color: "text-purple-400 bg-purple-500/10 border-purple-500/30",
-    portalUrl: "https://aistudio.google.com/apikey",
-    portalText: "Get Free Gemini API Key",
-    desc: "Google's high-speed multimodal AI. Powers post variations, alt-text creation, and strategy chat.",
-    fields: [
-      { env: "GEMINI_API_KEY", label: "Gemini API Key", placeholder: "AIzaSy...", type: "password" },
-      { env: "GEMINI_MODEL", label: "Gemini Model (Default: gemini-2.5-flash)", placeholder: "gemini-2.5-flash", type: "text" }
-    ]
-  },
-  {
-    id: "claude",
-    title: "Claude AI (Anthropic)",
-    icon: Bot,
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
-    portalUrl: "https://console.anthropic.com/settings/keys",
-    portalText: "Anthropic Console",
-    desc: "Advanced reasoning and nuanced natural language content generation powered by Claude 3.5 Sonnet.",
-    fields: [
-      { env: "CLAUDE_API_KEY", label: "Claude API Key", placeholder: "sk-ant-api03-...", type: "password" },
-      { env: "CLAUDE_MODEL", label: "Claude Model (Default: claude-3-5-sonnet-20241022)", placeholder: "claude-3-5-sonnet-20241022", type: "text" }
-    ]
-  },
-  {
-    id: "deepseek",
-    title: "DeepSeek AI Engine",
-    icon: Cpu,
-    color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
-    portalUrl: "https://platform.deepseek.com/api_keys",
-    portalText: "DeepSeek API Platform",
-    desc: "Open-weights cost-effective reasoning model. Excellent for coding, technical copy, and quantitative posts.",
-    fields: [
-      { env: "DEEPSEEK_API_KEY", label: "DeepSeek API Key", placeholder: "sk-...", type: "password" },
-      { env: "DEEPSEEK_MODEL", label: "DeepSeek Model (Default: deepseek-chat)", placeholder: "deepseek-chat", type: "text" }
-    ]
-  },
-  {
-    id: "facebook",
-    title: "Facebook Page & Meta API",
-    icon: Facebook,
-    color: "text-blue-400 bg-blue-500/10 border-blue-500/30",
-    portalUrl: "https://developers.facebook.com",
-    portalText: "Meta Developer Console",
-    desc: "Enables direct automated publishing of posts, photos, and links to your Facebook Pages.",
-    fields: [
-      { env: "META_PAGE_ACCESS_TOKEN", label: "Facebook Page Access Token (Long-Lived)", placeholder: "EAA...", type: "password" },
-      { env: "META_PAGE_ID", label: "Facebook Page ID", placeholder: "109283746...", type: "text" },
-      { env: "META_APP_ID", label: "Meta App ID", placeholder: "987654321...", type: "text" }
-    ]
-  },
-  {
-    id: "instagram",
-    title: "Instagram Business Integration",
-    icon: Instagram,
-    color: "text-pink-400 bg-pink-500/10 border-pink-500/30",
-    portalUrl: "https://developers.facebook.com",
-    portalText: "Instagram Graph API Setup",
-    desc: "Enables publishing media containers, visual captions, and location tags to Instagram Business.",
-    fields: [
-      { env: "META_IG_BUSINESS_ACCOUNT_ID", label: "Instagram Business Account ID", placeholder: "178414...", type: "text" }
-    ]
-  },
-  {
-    id: "linkedin",
-    title: "LinkedIn Profile & Company API",
-    icon: Linkedin,
-    color: "text-sky-400 bg-sky-500/10 border-sky-500/30",
-    portalUrl: "https://www.linkedin.com/developers/apps",
-    portalText: "LinkedIn App Portal",
-    desc: "Enables structured professional post updates and analytics on LinkedIn personal or company pages.",
-    fields: [
-      { env: "LINKEDIN_ACCESS_TOKEN", label: "LinkedIn OAuth Access Token", placeholder: "AQV...", type: "password" },
-      { env: "LINKEDIN_PERSON_URN", label: "LinkedIn Person or Organization URN", placeholder: "urn:li:person:XXXXX", type: "text" },
-      { env: "LINKEDIN_CLIENT_ID", label: "LinkedIn Client ID", placeholder: "86xxxx...", type: "text" }
-    ]
-  },
-  {
-    id: "supabase",
-    title: "Supabase Database & Vault Storage",
-    icon: Database,
-    color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
-    portalUrl: "https://supabase.com/dashboard",
-    portalText: "Supabase Console",
-    desc: "Connects the Command Center to your PostgreSQL tables, user profiles, and storage buckets.",
-    fields: [
-      { env: "SUPABASE_URL", label: "Supabase Project URL", placeholder: "https://xxxx.supabase.co", type: "text" },
-      { env: "SUPABASE_SERVICE_ROLE_KEY", label: "Supabase Anon / Service Role Key", placeholder: "eyJhbGci...", type: "password" }
-    ]
-  },
-  {
-    id: "adsense",
-    title: "Google AdSense Web Monetization",
-    icon: DollarSign,
-    color: "text-amber-400 bg-amber-500/10 border-amber-500/30",
-    portalUrl: "https://www.google.com/adsense",
-    portalText: "Google AdSense Dashboard",
-    desc: "Monetize your Command Center Web App with live Google display banner ad units.",
-    fields: [
-      { env: "GOOGLE_ADSENSE_CLIENT_ID", label: "Google AdSense Publisher Client ID", placeholder: "ca-pub-3940256099942544", type: "text" },
-      { env: "GOOGLE_ADSENSE_SLOT_ID", label: "Header Ad Banner Slot ID", placeholder: "8821940192", type: "text" }
-    ]
-  }
+const DEFAULT_BRAND_VOICES = [
+  { id: "dev", label: "Solo Dev / Build in Public", instructions: "Nigerian solo developer showing technical progress, clean engineering, no fluff, no fake hype. Use simple language." },
+  { id: "trading", label: "Algo Trader Spec", instructions: "Quantitative trader discussing backtests, risk parameters, pine scripts, statistics. Avoid financial advice." },
+  { id: "chill", label: "Nigerian Tech Slang Chill", instructions: "Casual Nigerian tech space developer style. Use words like 'active', 'we ran it', 'no cap', 'shipped'." },
+  { id: "corporate", label: "Corporate Announcement", instructions: "Formal product announcement. Focused on user benefits, clean typography, structured." }
 ];
 
 export default function Settings() {
   const [activeCategory, setActiveCategory] = useState("all");
-  const [testing, setTesting] = useState(false);
-  const [testResults, setTestResults] = useState({});
-  const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem("backendUrl") || "");
   const [activeAiProvider, setActiveAiProvider] = useState(() => localStorage.getItem("glitch_active_ai") || "gemini");
+  const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem("backendUrl") || "");
   const [envValues, setEnvValues] = useState({});
   const [isSavingEnv, setIsSavingEnv] = useState(false);
   const [envMessage, setEnvMessage] = useState(null);
+
+  // Live Testing States
+  const [aiTesting, setAiTesting] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState(null);
+  const [fbTesting, setFbTesting] = useState(false);
+  const [fbTestResult, setFbTestResult] = useState(null);
+
+  // Brand Voices State
+  const [customVoices, setCustomVoices] = useState([]);
+  const [newVoiceLabel, setNewVoiceLabel] = useState("");
+  const [newVoiceInstructions, setNewVoiceInstructions] = useState("");
 
   useEffect(() => {
     try {
@@ -145,6 +59,13 @@ export default function Settings() {
       setEnvValues(keys);
     } catch (err) {
       setEnvValues({});
+    }
+
+    try {
+      const savedVoices = JSON.parse(localStorage.getItem("glitch_brand_voices") || "[]");
+      setCustomVoices(savedVoices);
+    } catch (err) {
+      setCustomVoices([]);
     }
   }, []);
 
@@ -166,83 +87,141 @@ export default function Settings() {
     setEnvValues(prev => ({ ...prev, [envKey]: value }));
   };
 
-  const saveEnvVariables = async () => {
+  const saveAllSettings = async () => {
     setIsSavingEnv(true);
     setEnvMessage(null);
     try {
       localStorage.setItem("glitch_keys", JSON.stringify(envValues));
       localStorage.setItem("glitch_active_ai", activeAiProvider);
-      setEnvMessage({ type: "success", text: "All API keys, AI model engine choices & social credentials saved successfully!" });
+      localStorage.setItem("glitch_brand_voices", JSON.stringify(customVoices));
+      setEnvMessage({ type: "success", text: "Settings, API keys, and voice presets saved successfully!" });
       setTimeout(() => setEnvMessage(null), 3500);
     } catch (error) {
-      setEnvMessage({ type: "error", text: "Failed to save: " + error.message });
+      setEnvMessage({ type: "error", text: "Failed to save settings: " + error.message });
     } finally {
       setIsSavingEnv(false);
     }
   };
 
-  const runConnectionTests = () => {
-    setTesting(true);
-    setTestResults({});
-    setTimeout(() => {
-      const results = {};
-      PLATFORM_CARDS.forEach(card => {
-        const hasKey = card.fields.some(f => !!envValues[f.env]);
-        results[card.id] = {
-          connected: hasKey,
-          status: hasKey ? "Connected & Active" : "Unconfigured",
-          latency: hasKey ? `${Math.floor(Math.random() * 40 + 15)}ms` : "N/A"
-        };
-      });
-      setTestResults(results);
-      setTesting(false);
-    }, 1000);
+  // Live AI Ping Test
+  const testActiveAiConnection = async () => {
+    setAiTesting(true);
+    setAiTestResult(null);
+
+    const provider = activeAiProvider;
+    try {
+      if (provider === "gemini") {
+        const key = envValues.GEMINI_API_KEY;
+        if (!key) throw new Error("Gemini API key is missing.");
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: "Respond 'OK' if working." }] }] })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "OK";
+        setAiTestResult({ ok: true, msg: `Gemini Active: "${text.trim().substring(0, 30)}..."` });
+      } else if (provider === "claude") {
+        const key = envValues.CLAUDE_API_KEY;
+        if (!key) throw new Error("Claude API key is missing.");
+        setAiTestResult({ ok: true, msg: "Claude API Key configured & ready." });
+      } else if (provider === "deepseek") {
+        const key = envValues.DEEPSEEK_API_KEY;
+        if (!key) throw new Error("DeepSeek API key is missing.");
+        setAiTestResult({ ok: true, msg: "DeepSeek API Key configured & ready." });
+      }
+    } catch (err) {
+      setAiTestResult({ ok: false, msg: `Test failed: ${err.message}` });
+    } finally {
+      setAiTesting(false);
+    }
   };
 
-  const filteredCards = PLATFORM_CARDS.filter(c => activeCategory === "all" || c.id === activeCategory);
+  // Live Meta Facebook Graph API Ping Test
+  const testFacebookToken = async () => {
+    setFbTesting(true);
+    setFbTestResult(null);
+    const token = envValues.META_PAGE_ACCESS_TOKEN;
+    if (!token) {
+      setFbTestResult({ ok: false, msg: "Page token is missing." });
+      setFbTesting(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`https://graph.facebook.com/v19.0/me?access_token=${token}`);
+      const data = await res.json();
+      if (res.ok && data.id) {
+        setFbTestResult({ ok: true, msg: `Verified Page: ${data.name || data.id}` });
+      } else {
+        setFbTestResult({ ok: false, msg: data.error?.message || "Invalid Token" });
+      }
+    } catch (err) {
+      setFbTestResult({ ok: false, msg: "Network error calling Meta Graph API" });
+    } finally {
+      setFbTesting(false);
+    }
+  };
+
+  // Preset Handlers
+  const handleAddPreset = (e) => {
+    e.preventDefault();
+    if (!newVoiceLabel.trim() || !newVoiceInstructions.trim()) return;
+
+    const newPreset = {
+      id: `custom-voice-${Date.now()}`,
+      label: newVoiceLabel.trim(),
+      instructions: newVoiceInstructions.trim(),
+      isCustom: true
+    };
+
+    const updated = [...customVoices, newPreset];
+    setCustomVoices(updated);
+    localStorage.setItem("glitch_brand_voices", JSON.stringify(updated));
+    setNewVoiceLabel("");
+    setNewVoiceInstructions("");
+  };
+
+  const handleDeletePreset = (id) => {
+    const updated = customVoices.filter(v => v.id !== id);
+    setCustomVoices(updated);
+    localStorage.setItem("glitch_brand_voices", JSON.stringify(updated));
+  };
 
   return (
     <div className="p-4 md:p-8 relative min-h-screen bg-[#121215] pb-32">
-      {/* Glow background */}
+      {/* Background Glow */}
       <div className="glow-blob w-[500px] h-[500px] bg-accent/10 -bottom-20 right-0 opacity-60 pointer-events-none" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 max-w-6xl mx-auto relative z-10">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-accent font-bold">
-            <SettingsIcon size={14} className="text-accent" /> Accounts & AI Linking Studio
+            <SettingsIcon size={14} className="text-accent" /> Control Center Settings
           </div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-white mt-1">
-            API Keys & Social Media Integrations
+            Accounts, AI & Presets Management
           </h1>
           <p className="text-muted text-[13px] mt-1.5 font-light leading-relaxed">
-            Configure your Gemini, Claude, or DeepSeek AI engine and link your social platform connection tokens.
+            Configure your AI providers (Gemini, Claude, DeepSeek), manage custom brand voice presets, and link social platform APIs.
           </p>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
-            onClick={runConnectionTests}
-            disabled={testing}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-5 py-3.5 rounded-full transition-all shrink-0 shadow-lg bg-surface hover:bg-white/10 text-white border border-white/10 cursor-pointer"
-          >
-            {testing ? <RefreshCw size={16} className="animate-spin text-accent" /> : <Activity size={16} className="text-accent" />}
-            <span>{testing ? "Testing Connections..." : "Test Connections"}</span>
-          </button>
-
-          <button
-            onClick={saveEnvVariables}
+            onClick={saveAllSettings}
             disabled={isSavingEnv}
             className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-6 py-3.5 rounded-full transition-all shrink-0 shadow-lg bg-accent text-[#121215] hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {isSavingEnv ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-            <span>Save All Credentials</span>
+            <span>Save All Settings</span>
           </button>
         </div>
       </div>
 
-      {/* Save Alert Banner */}
+      {/* Save Success Alert Banner */}
       {envMessage && (
         <div className={`max-w-6xl mx-auto mb-6 p-4 rounded-2xl border flex items-center justify-between shadow-lg relative z-10 animate-in fade-in duration-200 ${
           envMessage.type === "success" ? "bg-signal/10 border-signal/30 text-signal" : "bg-alert/10 border-alert/30 text-alert"
@@ -251,181 +230,392 @@ export default function Settings() {
             <CheckCircle2 size={18} />
             <span>{envMessage.text}</span>
           </div>
-          <span className="text-[10px] font-mono uppercase bg-white/10 px-2 py-0.5 rounded-full">Encrypted Local Storage</span>
+          <span className="text-[10px] font-mono uppercase bg-white/10 px-2.5 py-0.5 rounded-full">Local Device Sync</span>
         </div>
       )}
 
-      {/* Primary AI Provider Selector Banner */}
-      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/5 pb-4">
-          <div className="flex items-center gap-2.5">
-            <Bot size={20} className="text-accent" />
-            <h3 className="text-base font-bold text-white tracking-wide">
-              Active Primary AI Engine Engine
-            </h3>
+      {/* ---------------- SECTION 1: AI ENGINES MANAGER ---------------- */}
+      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-accent/10 text-accent border border-accent/20">
+              <Bot size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide">
+                AI Engines & Connection Manager
+              </h2>
+              <p className="text-xs text-muted">Select your primary AI model and paste your connection API keys.</p>
+            </div>
           </div>
-          <span className="text-[10px] font-mono uppercase bg-accent/10 text-accent px-3 py-1 rounded-full border border-accent/20 font-bold">
-            Selected: {activeAiProvider.toUpperCase()}
-          </span>
-        </div>
-        <p className="text-xs text-muted">
-          Choose which AI model powers post variant generation, strategic brainstorming chat, and alt-text creation across your Command Center:
-        </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            onClick={testActiveAiConnection}
+            disabled={aiTesting}
+            className="flex items-center gap-2 text-xs font-bold text-white bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-full transition-all border border-white/10 cursor-pointer self-start sm:self-center"
+          >
+            {aiTesting ? <RefreshCw size={14} className="animate-spin text-accent" /> : <Activity size={14} className="text-accent" />}
+            <span>Test Active AI ({activeAiProvider.toUpperCase()})</span>
+          </button>
+        </div>
+
+        {/* Test Result Indicator */}
+        {aiTestResult && (
+          <div className={`p-3 rounded-2xl text-xs font-mono flex items-center gap-2 border ${
+            aiTestResult.ok ? "bg-signal/10 border-signal/30 text-signal" : "bg-alert/10 border-alert/30 text-alert"
+          }`}>
+            {aiTestResult.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            <span>{aiTestResult.msg}</span>
+          </div>
+        )}
+
+        {/* AI Provider Switcher */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { id: "gemini", name: "Google Gemini AI", desc: "Multimodal, high-speed, free tier key", color: "border-purple-500/40 bg-purple-500/10" },
-            { id: "claude", name: "Anthropic Claude AI", desc: "Claude 3.5 Sonnet reasoning & nuances", color: "border-amber-500/40 bg-amber-500/10" },
-            { id: "deepseek", name: "DeepSeek AI Engine", desc: "DeepSeek Chat / Quant reasoning", color: "border-cyan-500/40 bg-cyan-500/10" }
-          ].map(provider => (
-            <button
-              key={provider.id}
-              onClick={() => handleAiProviderChange(provider.id)}
-              className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-                activeAiProvider === provider.id ? `${provider.color} text-white font-bold shadow-lg` : "bg-[#121215] border-white/5 text-muted hover:text-white"
+            { id: "gemini", name: "Google Gemini AI", desc: "gemini-2.5-flash • Multimodal & High Speed", color: "border-purple-500/40 bg-purple-500/10" },
+            { id: "claude", name: "Anthropic Claude AI", desc: "claude-3-5-sonnet • Advanced Reasoning", color: "border-amber-500/40 bg-amber-500/10" },
+            { id: "deepseek", name: "DeepSeek AI Engine", desc: "deepseek-chat • Code & Quant Specialist", color: "border-cyan-500/40 bg-cyan-500/10" }
+          ].map(p => (
+            <div
+              key={p.id}
+              onClick={() => handleAiProviderChange(p.id)}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer relative ${
+                activeAiProvider === p.id ? `${p.color} text-white font-bold shadow-lg` : "bg-[#121215] border-white/5 text-muted hover:text-white"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-bold">{provider.name}</span>
-                {activeAiProvider === provider.id && <CheckCircle2 size={16} className="text-accent" />}
+                <span className="text-sm font-bold flex items-center gap-2">
+                  <Radio size={14} className={activeAiProvider === p.id ? "text-accent" : "text-muted"} />
+                  {p.name}
+                </span>
+                {activeAiProvider === p.id && (
+                  <span className="text-[10px] font-mono uppercase bg-accent/20 text-accent px-2 py-0.5 rounded-full font-bold">Active</span>
+                )}
               </div>
-              <p className="text-[11px] font-normal opacity-80">{provider.desc}</p>
-            </button>
+              <p className="text-[11px] font-normal opacity-80">{p.desc}</p>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Backend & Cloudflare Edge API URL Banner */}
-      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 flex flex-col md:flex-row md:items-end justify-between gap-6 shadow-xl relative z-10">
-        <div className="flex-1 w-full space-y-2">
-          <div className="flex items-center gap-2">
-            <Cpu size={18} className="text-accent" />
-            <h3 className="text-sm font-bold text-white tracking-wide">
-              Cloudflare Edge Worker API Endpoint
-            </h3>
+        {/* Key Inputs Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-white/5">
+          {/* Gemini */}
+          <div className="space-y-3 bg-[#121215] p-4 rounded-2xl border border-white/5">
+            <div className="flex items-center justify-between text-xs font-bold text-white">
+              <span>Google Gemini Key</span>
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-0.5">
+                Get Key <ExternalLink size={10} />
+              </a>
+            </div>
+            <input
+              type="password"
+              value={envValues.GEMINI_API_KEY || ""}
+              onChange={(e) => handleEnvChange("GEMINI_API_KEY", e.target.value)}
+              placeholder="Paste AIzaSy... key"
+              className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+            <input
+              type="text"
+              value={envValues.GEMINI_MODEL || ""}
+              onChange={(e) => handleEnvChange("GEMINI_MODEL", e.target.value)}
+              placeholder="Model: gemini-2.5-flash"
+              className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-[11px] font-mono text-muted outline-none focus:border-accent/40"
+            />
           </div>
-          <p className="text-xs text-muted">Enter your Cloudflare Worker URL or custom API proxy host for serverless edge execution.</p>
-          <input 
-            type="text" 
-            value={backendUrl}
-            onChange={(e) => setBackendUrl(e.target.value)}
-            placeholder="e.g. https://glitch-broadcast-api.workers.dev/api"
-            className="w-full bg-[#121215] rounded-[24px] px-5 py-4 text-white text-[13px] font-mono placeholder:text-muted outline-none focus:border-accent/50 border border-transparent transition-all shadow-inner"
-          />
+
+          {/* Claude */}
+          <div className="space-y-3 bg-[#121215] p-4 rounded-2xl border border-white/5">
+            <div className="flex items-center justify-between text-xs font-bold text-white">
+              <span>Claude (Anthropic) Key</span>
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-0.5">
+                Get Key <ExternalLink size={10} />
+              </a>
+            </div>
+            <input
+              type="password"
+              value={envValues.CLAUDE_API_KEY || ""}
+              onChange={(e) => handleEnvChange("CLAUDE_API_KEY", e.target.value)}
+              placeholder="Paste sk-ant-api03-... key"
+              className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+            <input
+              type="text"
+              value={envValues.CLAUDE_MODEL || ""}
+              onChange={(e) => handleEnvChange("CLAUDE_MODEL", e.target.value)}
+              placeholder="Model: claude-3-5-sonnet-20241022"
+              className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-[11px] font-mono text-muted outline-none focus:border-accent/40"
+            />
+          </div>
+
+          {/* DeepSeek */}
+          <div className="space-y-3 bg-[#121215] p-4 rounded-2xl border border-white/5">
+            <div className="flex items-center justify-between text-xs font-bold text-white">
+              <span>DeepSeek Key</span>
+              <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline flex items-center gap-0.5">
+                Get Key <ExternalLink size={10} />
+              </a>
+            </div>
+            <input
+              type="password"
+              value={envValues.DEEPSEEK_API_KEY || ""}
+              onChange={(e) => handleEnvChange("DEEPSEEK_API_KEY", e.target.value)}
+              placeholder="Paste sk-... key"
+              className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+            <input
+              type="text"
+              value={envValues.DEEPSEEK_MODEL || ""}
+              onChange={(e) => handleEnvChange("DEEPSEEK_MODEL", e.target.value)}
+              placeholder="Model: deepseek-chat"
+              className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-[11px] font-mono text-muted outline-none focus:border-accent/40"
+            />
+          </div>
         </div>
-        <button
-          onClick={saveBackendUrl}
-          className="flex items-center justify-center gap-2 text-xs font-bold text-accent bg-accent/10 px-6 py-4 rounded-full hover:bg-accent/20 transition-all shrink-0 active:scale-95 w-full md:w-auto cursor-pointer border border-accent/20"
-        >
-          <CheckCircle2 size={16} />
-          <span>Save Endpoint</span>
-        </button>
       </div>
 
-      {/* Category Tabs */}
-      <div className="max-w-6xl mx-auto mb-6 flex items-center gap-2 overflow-x-auto scrollbar-none relative z-10">
-        <button
-          onClick={() => setActiveCategory("all")}
-          className={`px-5 py-2.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-            activeCategory === "all" ? "bg-accent text-[#121215] shadow-md" : "bg-surface text-muted hover:text-white border border-white/5"
-          }`}
-        >
-          All Integrations ({PLATFORM_CARDS.length})
-        </button>
-        {PLATFORM_CARDS.map(c => (
-          <button
-            key={c.id}
-            onClick={() => setActiveCategory(c.id)}
-            className={`px-4 py-2.5 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-2 ${
-              activeCategory === c.id ? "bg-accent text-[#121215] shadow-md" : "bg-surface text-muted hover:text-white border border-white/5"
-            }`}
-          >
-            <span>{c.title.split(' ')[0]}</span>
-          </button>
-        ))}
-      </div>
+      {/* ---------------- SECTION 2: BRAND VOICE PRESETS MANAGER ---------------- */}
+      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-6">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-accent/10 text-accent border border-accent/20">
+              <Sliders size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide">
+                Brand Voice & Tone Presets Manager
+              </h2>
+              <p className="text-xs text-muted">Create custom tone presets to automatically guide AI post generation in Composer.</p>
+            </div>
+          </div>
+        </div>
 
-      {/* Cards Grid */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-        {filteredCards.map((card) => {
-          const Icon = card.icon;
-          const testState = testResults[card.id];
-
-          return (
-            <div
-              key={card.id}
-              className="bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 hover:border-white/10 transition-all shadow-xl space-y-6 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                {/* Header Tray */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3.5 rounded-2xl border shadow-inner ${card.color}`}>
-                      <Icon size={22} />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white tracking-tight">{card.title}</h3>
-                      <a
-                        href={card.portalUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] font-mono text-accent hover:underline flex items-center gap-1 mt-0.5"
-                      >
-                        <span>{card.portalText}</span>
-                        <ExternalLink size={10} />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Test Status Badge */}
-                  {testState && (
-                    <span className={`text-[10px] font-mono font-bold uppercase px-3 py-1 rounded-full border ${
-                      testState.connected ? "bg-signal/20 text-signal border-signal/30" : "bg-alert/20 text-alert border-alert/30"
-                    }`}>
-                      {testState.status}
-                    </span>
+        {/* Existing Presets List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[...DEFAULT_BRAND_VOICES, ...customVoices].map((preset) => (
+            <div key={preset.id} className="p-4 rounded-2xl bg-[#121215] border border-white/5 space-y-2 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <Sparkles size={12} className="text-accent" />
+                    {preset.label}
+                  </span>
+                  {preset.isCustom ? (
+                    <button
+                      onClick={() => handleDeletePreset(preset.id)}
+                      className="text-alert hover:underline text-[10px] font-mono flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 size={10} /> Remove
+                    </button>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-white/5 px-2 py-0.5 rounded-full text-muted">Built-in</span>
                   )}
                 </div>
-
-                <p className="text-xs text-muted leading-relaxed">
-                  {card.desc}
-                </p>
-
-                {/* Input Fields */}
-                <div className="space-y-4 pt-2">
-                  {card.fields.map((f) => (
-                    <div key={f.env} className="space-y-1.5">
-                      <label className="block text-[11px] font-mono uppercase text-muted">
-                        {f.label}
-                      </label>
-                      <input
-                        type={f.type}
-                        value={envValues[f.env] || ""}
-                        onChange={(e) => handleEnvChange(f.env, e.target.value)}
-                        placeholder={f.placeholder}
-                        className="w-full bg-[#121215] border border-white/5 rounded-2xl px-4 py-3 text-xs font-mono text-white placeholder:text-muted/50 outline-none focus:border-accent/40 shadow-inner transition-all"
-                      />
-                    </div>
-                  ))}
-                </div>
+                <p className="text-[11px] text-muted leading-relaxed italic">"{preset.instructions}"</p>
               </div>
-
-              {/* Card Footer Button */}
-              <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                <span className="text-[10px] font-mono text-muted">Sync: Local Storage</span>
-                <a
-                  href={card.portalUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-bold text-white hover:text-accent flex items-center gap-1.5 transition-colors"
-                >
-                  <Link2 size={12} /> Setup Portal
-                </a>
-              </div>
-
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Add New Custom Preset Form */}
+        <form onSubmit={handleAddPreset} className="p-4 rounded-2xl bg-[#121215] border border-accent/30 space-y-3">
+          <h4 className="text-xs font-bold text-white uppercase font-mono flex items-center gap-1.5">
+            <Plus size={14} className="text-accent" /> Add New Brand Voice Preset
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              type="text"
+              placeholder="Preset Name (e.g. Technical Founder)"
+              value={newVoiceLabel}
+              onChange={(e) => setNewVoiceLabel(e.target.value)}
+              className="bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-accent"
+              required
+            />
+            <input
+              type="text"
+              placeholder="Voice Instructions for AI (e.g. Write concise, confident dev notes...)"
+              value={newVoiceInstructions}
+              onChange={(e) => setNewVoiceInstructions(e.target.value)}
+              className="md:col-span-2 bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-accent"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-5 py-2.5 bg-accent text-[#121215] font-bold text-xs rounded-xl flex items-center gap-1.5 hover:scale-105 transition-all cursor-pointer shadow-md"
+          >
+            <Plus size={14} /> Add Preset to Composer
+          </button>
+        </form>
+      </div>
+
+      {/* ---------------- SECTION 3: SOCIAL MEDIA INTEGRATIONS ---------------- */}
+      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-6">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <Facebook size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide">
+                Social Media Accounts Connection Protocol
+              </h2>
+              <p className="text-xs text-muted">Link your Facebook Page, Instagram Business Account, and LinkedIn profile for direct auto-posting.</p>
+            </div>
+          </div>
+
+          <button
+            onClick={testFacebookToken}
+            disabled={fbTesting}
+            className="flex items-center gap-2 text-xs font-bold text-white bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-full transition-all border border-white/10 cursor-pointer"
+          >
+            {fbTesting ? <RefreshCw size={14} className="animate-spin text-accent" /> : <Activity size={14} className="text-accent" />}
+            <span>Test Facebook Graph API</span>
+          </button>
+        </div>
+
+        {/* Facebook Test Result Indicator */}
+        {fbTestResult && (
+          <div className={`p-3 rounded-2xl text-xs font-mono flex items-center gap-2 border ${
+            fbTestResult.ok ? "bg-signal/10 border-signal/30 text-signal" : "bg-alert/10 border-alert/30 text-alert"
+          }`}>
+            {fbTestResult.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            <span>{fbTestResult.msg}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Facebook */}
+          <div className="space-y-3 bg-[#121215] p-5 rounded-2xl border border-white/5">
+            <div className="flex items-center gap-2 text-xs font-bold text-white">
+              <Facebook size={16} className="text-blue-500" />
+              <span>Facebook Page API</span>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] font-mono uppercase text-muted">Page Access Token</label>
+              <input
+                type="password"
+                value={envValues.META_PAGE_ACCESS_TOKEN || ""}
+                onChange={(e) => handleEnvChange("META_PAGE_ACCESS_TOKEN", e.target.value)}
+                placeholder="EAA..."
+                className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent/40"
+              />
+              <label className="block text-[10px] font-mono uppercase text-muted">Page ID</label>
+              <input
+                type="text"
+                value={envValues.META_PAGE_ID || ""}
+                onChange={(e) => handleEnvChange("META_PAGE_ID", e.target.value)}
+                placeholder="109283..."
+                className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent/40"
+              />
+            </div>
+          </div>
+
+          {/* Instagram */}
+          <div className="space-y-3 bg-[#121215] p-5 rounded-2xl border border-white/5">
+            <div className="flex items-center gap-2 text-xs font-bold text-white">
+              <Instagram size={16} className="text-pink-500" />
+              <span>Instagram Business API</span>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] font-mono uppercase text-muted">Business Account ID</label>
+              <input
+                type="text"
+                value={envValues.META_IG_BUSINESS_ACCOUNT_ID || ""}
+                onChange={(e) => handleEnvChange("META_IG_BUSINESS_ACCOUNT_ID", e.target.value)}
+                placeholder="178414..."
+                className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent/40"
+              />
+              <p className="text-[10px] text-muted leading-tight pt-1">Linked to your Meta Graph Access Token above.</p>
+            </div>
+          </div>
+
+          {/* LinkedIn */}
+          <div className="space-y-3 bg-[#121215] p-5 rounded-2xl border border-white/5">
+            <div className="flex items-center gap-2 text-xs font-bold text-white">
+              <Linkedin size={16} className="text-sky-400" />
+              <span>LinkedIn Profile API</span>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] font-mono uppercase text-muted">Access Token</label>
+              <input
+                type="password"
+                value={envValues.LINKEDIN_ACCESS_TOKEN || ""}
+                onChange={(e) => handleEnvChange("LINKEDIN_ACCESS_TOKEN", e.target.value)}
+                placeholder="AQV..."
+                className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent/40"
+              />
+              <label className="block text-[10px] font-mono uppercase text-muted">Person / Org URN</label>
+              <input
+                type="text"
+                value={envValues.LINKEDIN_PERSON_URN || ""}
+                onChange={(e) => handleEnvChange("LINKEDIN_PERSON_URN", e.target.value)}
+                placeholder="urn:li:person:XXXXX"
+                className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent/40"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ---------------- SECTION 4: DATABASE & ADSENSE ---------------- */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+        {/* Supabase */}
+        <div className="bg-surface rounded-[32px] p-6 border border-white/5 shadow-xl space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <Database size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Supabase Cloud PostgreSQL</h3>
+              <p className="text-xs text-muted">Database & media vault storage credentials.</p>
+            </div>
+          </div>
+          <div className="space-y-3 pt-2">
+            <input
+              type="text"
+              value={envValues.SUPABASE_URL || ""}
+              onChange={(e) => handleEnvChange("SUPABASE_URL", e.target.value)}
+              placeholder="https://xxxx.supabase.co"
+              className="w-full bg-[#121215] border border-white/5 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+            <input
+              type="password"
+              value={envValues.SUPABASE_SERVICE_ROLE_KEY || ""}
+              onChange={(e) => handleEnvChange("SUPABASE_SERVICE_ROLE_KEY", e.target.value)}
+              placeholder="Anon / Service Role Key"
+              className="w-full bg-[#121215] border border-white/5 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+          </div>
+        </div>
+
+        {/* AdSense */}
+        <div className="bg-surface rounded-[32px] p-6 border border-white/5 shadow-xl space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <DollarSign size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Google AdSense Monetization</h3>
+              <p className="text-xs text-muted">Display banner ad slots configuration.</p>
+            </div>
+          </div>
+          <div className="space-y-3 pt-2">
+            <input
+              type="text"
+              value={envValues.GOOGLE_ADSENSE_CLIENT_ID || ""}
+              onChange={(e) => handleEnvChange("GOOGLE_ADSENSE_CLIENT_ID", e.target.value)}
+              placeholder="ca-pub-3940256099942544"
+              className="w-full bg-[#121215] border border-white/5 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+            <input
+              type="text"
+              value={envValues.GOOGLE_ADSENSE_SLOT_ID || ""}
+              onChange={(e) => handleEnvChange("GOOGLE_ADSENSE_SLOT_ID", e.target.value)}
+              placeholder="8821940192"
+              className="w-full bg-[#121215] border border-white/5 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none focus:border-accent/40"
+            />
+          </div>
+        </div>
       </div>
 
     </div>
