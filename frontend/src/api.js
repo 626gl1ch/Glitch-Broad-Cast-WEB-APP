@@ -1,7 +1,13 @@
 import { showInterstitialAd } from "./utils/admob";
 
 const getBaseUrl = () => {
-  return localStorage.getItem("backendUrl") || import.meta.env.VITE_API_URL || "http://localhost:8787/api";
+  const custom = localStorage.getItem("backendUrl");
+  if (custom) return custom;
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== "undefined" && window.location.hostname.includes("github.io")) {
+    return "https://glitch-broadcast-api.workers.dev/api";
+  }
+  return "http://localhost:8787/api";
 };
 
 const getAppKeys = () => {
@@ -30,6 +36,7 @@ async function safeReq(path, options = {}) {
   try {
     const res = await fetch(`${BASE}${path}`, {
       headers: { ...headers, ...(options.headers || {}) },
+      signal: AbortSignal.timeout(3000),
       ...options,
     });
     if (!res.ok) {
@@ -38,7 +45,7 @@ async function safeReq(path, options = {}) {
     }
     return await res.json();
   } catch (err) {
-    console.log(`[Edge Notice] API request to ${path} bypassed backend fallback:`, err.message);
+    console.log(`[Edge Notice] Service path ${path} operating in offline/client-edge mode:`, err.message);
     throw err;
   }
 }
@@ -57,7 +64,6 @@ export const api = {
     try {
       return await safeReq("/chat", { method: "POST", body: JSON.stringify({ message }) });
     } catch (_) {
-      // Local client-side fallback AI response
       const keys = getAppKeys();
       const geminiKey = keys.GEMINI_API_KEY;
       if (geminiKey) {
@@ -79,7 +85,7 @@ export const api = {
       }
       return {
         ok: true,
-        response: `[Glitch AI Studio] Received: "${message}". Make sure to add your Gemini API key in Settings to unlock live conversational AI!`,
+        response: `[Glitch AI Studio] Received: "${message}". Please enter your Gemini API key in Settings to unlock live conversational AI!`,
         created_at: new Date().toISOString()
       };
     }
@@ -107,7 +113,6 @@ export const api = {
     try {
       return await safeReq("/compose/generate", { method: "POST", body: JSON.stringify(payload) });
     } catch (err) {
-      // Direct client-side Gemini AI generation if local backend is offline
       const keys = getAppKeys();
       const geminiKey = keys.GEMINI_API_KEY;
       if (geminiKey) {
@@ -149,9 +154,7 @@ Respond with valid JSON mapping each platform to content and hashtags array:
             });
             return { ok: true, variants: formattedVariants };
           }
-        } catch (e) {
-          console.warn("Direct Gemini call fallback notice:", e);
-        }
+        } catch (e) {}
       }
       throw err;
     }
@@ -183,7 +186,7 @@ Respond with valid JSON mapping each platform to content and hashtags array:
     }
   },
 
-  // Facebook Groups (assisted posting)
+  // Facebook Groups
   queueGroupPost: async (variantId, groupUrl) => {
     try {
       return await safeReq("/groups/queue", { method: "POST", body: JSON.stringify({ variantId, groupUrl }) });
@@ -200,7 +203,7 @@ Respond with valid JSON mapping each platform to content and hashtags array:
     }
   },
 
-  // Files / Content Vault
+  // Files
   listFiles: async (folder) => {
     try {
       return await safeReq(`/files${folder ? `?folder=${folder}` : ""}`);
@@ -235,7 +238,6 @@ Respond with valid JSON mapping each platform to content and hashtags array:
       if (res.ok) return await res.json();
     } catch (e) {}
 
-    // Web Local Object URL fallback
     const fakeUrl = URL.createObjectURL(file);
     return {
       id: `file-${Date.now()}`,

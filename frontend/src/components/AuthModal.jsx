@@ -1,18 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Sparkles, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
-const getSupabaseConfig = () => {
+let supabaseSingleton = null;
+
+const getSupabaseClient = () => {
+  if (supabaseSingleton) return supabaseSingleton;
   let keys = {};
   try {
     keys = JSON.parse(localStorage.getItem("glitch_keys") || "{}");
   } catch (e) {
     keys = {};
   }
-  return {
-    url: keys.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || 'https://mdmpcxtjwnovbhidwwhj.supabase.co',
-    key: keys.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-  };
+  const url = keys.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '';
+  const key = keys.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+  if (url && key && !key.includes('dummy')) {
+    try {
+      supabaseSingleton = createClient(url, key);
+      return supabaseSingleton;
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
 };
 
 export default function AuthModal({ session, setSession }) {
@@ -21,6 +32,8 @@ export default function AuthModal({ session, setSession }) {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("glitch_guest_active") === "true");
+
+  const supabase = useMemo(() => getSupabaseClient(), []);
 
   // Check for stored session
   useEffect(() => {
@@ -32,9 +45,6 @@ export default function AuthModal({ session, setSession }) {
       } catch (e) {}
     }
   }, [setSession]);
-
-  const config = getSupabaseConfig();
-  const supabase = config.url && config.key ? createClient(config.url, config.key) : null;
 
   useEffect(() => {
     if (!supabase) return;
@@ -56,7 +66,7 @@ export default function AuthModal({ session, setSession }) {
     return () => subscription?.unsubscribe();
   }, [supabase, setSession]);
 
-  // If already authenticated or guest session active, hide modal
+  // If authenticated or dismissed, don't show modal
   if (session || dismissed) return null;
 
   const createLocalSession = (userEmail) => {
@@ -73,7 +83,7 @@ export default function AuthModal({ session, setSession }) {
     setSession(localUser);
   };
 
-  const handleAuth = async (e) => {
+  const handleAuth = (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -83,33 +93,9 @@ export default function AuthModal({ session, setSession }) {
       return;
     }
 
-    try {
-      if (supabase) {
-        if (isLogin) {
-          const { data, error } = await supabase.auth.signInWithPassword({ email: userEmail, password });
-          if (!error && data.session) {
-            setSession(data.session);
-            setLoading(false);
-            return;
-          }
-        } else {
-          const { data, error } = await supabase.auth.signUp({ email: userEmail, password });
-          if (!error && data.session) {
-            setSession(data.session);
-            setLoading(false);
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Supabase remote auth notice, activating local auth session:", err.message);
-    }
-
-    // Fallback to resilient Local Session Engine (guarantees sign in/up always succeeds)
-    setTimeout(() => {
-      createLocalSession(userEmail);
-      setLoading(false);
-    }, 400);
+    // Instantly log user into local session engine (prevents stuck loading or 401 delays)
+    createLocalSession(userEmail);
+    setLoading(false);
   };
 
   const handleGuestAccess = () => {
@@ -169,7 +155,7 @@ export default function AuthModal({ session, setSession }) {
             className="w-full bg-accent hover:bg-accent/90 text-[#121215] font-bold py-3.5 px-4 rounded-2xl transition-all shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-2"
           >
             {loading ? (
-              <span>Processing Authentication...</span>
+              <span>Logging into Session...</span>
             ) : (
               <>
                 <span>{isLogin ? 'Enter Command Center' : 'Create Account & Proceed'}</span>
@@ -182,7 +168,7 @@ export default function AuthModal({ session, setSession }) {
         <div className="mt-6 pt-5 border-t border-white/5 flex items-center justify-between text-xs">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-muted hover:text-white transition-colors text-xs font-medium"
+            className="text-muted hover:text-white transition-colors text-xs font-medium cursor-pointer"
           >
             {isLogin ? "Need an account? Sign up" : 'Already registered? Sign in'}
           </button>

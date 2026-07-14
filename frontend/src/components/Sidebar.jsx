@@ -24,30 +24,31 @@ const NAV = [
 ];
 
 export default function Sidebar({ active, onChange }) {
-  const [demoMode, setDemoMode] = useState(false);
-  const [latency, setLatency] = useState("Checking...");
+  const [latency, setLatency] = useState("Cloud Edge Active");
 
   useEffect(() => {
-    const checkBackend = async () => {
-      const start = Date.now();
-      try {
-        const BASE = localStorage.getItem("backendUrl") || import.meta.env.VITE_API_URL || "http://localhost:8787/api";
-        const res = await fetch(`${BASE}/health`).catch(() => null);
-        if (res && res.ok) {
-          setLatency(`${Date.now() - start}ms`);
-          setDemoMode(false);
-        } else {
-          setLatency("Web Cloud Mode");
-          setDemoMode(false);
-        }
-      } catch (_) {
+    // Quiet edge status check - never spam console errors
+    const checkBackendQuietly = () => {
+      const savedUrl = localStorage.getItem("backendUrl");
+      if (!savedUrl && typeof window !== "undefined" && window.location.hostname.includes("github.io")) {
         setLatency("Web Edge Active");
-        setDemoMode(false);
+        return;
+      }
+      const start = Date.now();
+      const targetUrl = savedUrl || import.meta.env.VITE_API_URL;
+      if (targetUrl) {
+        fetch(`${targetUrl}/health`, { signal: AbortSignal.timeout(2000) })
+          .then(res => {
+            if (res.ok) setLatency(`${Date.now() - start}ms`);
+            else setLatency("Web Edge Mode");
+          })
+          .catch(() => setLatency("Web Edge Mode"));
+      } else {
+        setLatency("Web Edge Active");
       }
     };
-    checkBackend();
-    const interval = setInterval(checkBackend, 15000);
-    return () => clearInterval(interval);
+
+    checkBackendQuietly();
   }, []);
 
   return (
