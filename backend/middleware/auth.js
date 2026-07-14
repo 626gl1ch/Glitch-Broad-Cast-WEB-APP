@@ -18,46 +18,37 @@ const requireAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // Allow seamless guest/demo session for 100% free web app if auth header not passed
-      req.user = {
-        id: 'free-web-user',
-        email: 'user@glitchbroadcast.app',
-        profile: { role: 'admin', subscription_status: 'active', usage_count: 0, is_trial: false }
-      };
-      return next();
+      return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
     }
 
     const token = authHeader.split(' ')[1];
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
-      req.user = {
-        id: 'free-web-user',
-        email: 'user@glitchbroadcast.app',
-        profile: { role: 'admin', subscription_status: 'active', usage_count: 0, is_trial: false }
-      };
-      return next();
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
     let profile = profileCache.get(user.id);
     if (!profile) {
-      profile = { role: 'admin', subscription_status: 'active', usage_count: 0, is_trial: false };
+      // Attempt to fetch profile from database
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+        
+      profile = dbProfile || { role: 'user', subscription_status: 'active', usage_count: 0, is_trial: false };
       profileCache.set(user.id, profile);
     }
 
     req.user = {
       ...user,
-      profile: { ...profile, role: 'admin', subscription_status: 'active', is_trial: false }
+      profile
     };
 
     next();
   } catch (error) {
-    req.user = {
-      id: 'free-web-user',
-      email: 'user@glitchbroadcast.app',
-      profile: { role: 'admin', subscription_status: 'active', usage_count: 0, is_trial: false }
-    };
-    next();
+    return res.status(401).json({ error: 'Unauthorized: Server error during authentication' });
   }
 };
 
