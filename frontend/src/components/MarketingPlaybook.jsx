@@ -1,148 +1,107 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Copy, Check, Sparkles, Send } from "lucide-react";
 
-function SafeShadowRoot({ html, css }) {
-  const hostRef = useRef(null);
-  const [shadowRoot, setShadowRoot] = useState(null);
-
-  useEffect(() => {
-    if (hostRef.current && !shadowRoot) {
-      const root = hostRef.current.attachShadow({ mode: "open" });
-      setShadowRoot(root);
-    }
-  }, [shadowRoot]);
-
-  useEffect(() => {
-    if (shadowRoot) {
-      // Inject some custom CSS into the shadow root to make it match the neon theme better
-      const customCss = `
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
-      `;
-
-      shadowRoot.innerHTML = `
-        <style>${css} ${customCss}</style>
-        <div class="shadow-body">${html}</div>
-      `;
-
-      const handleShadowClick = (e) => {
-        const path = e.composedPath();
-        
-        // Find if any element in the click path is a copy button or tab
-        const copyBtn = path.find(el => el.classList && el.classList.contains("copy-btn"));
-        const tabBtn = path.find(el => el.classList && el.classList.contains("platform-tab"));
-
-        if (copyBtn) {
-          const onclickAttr = copyBtn.getAttribute("onclick");
-          if (onclickAttr) {
-            const match = onclickAttr.match(/copyPost\(this,\s*'([^']+)'\)/);
-            if (match) {
-              const targetId = match[1];
-              const textEl = shadowRoot.getElementById(targetId);
-              if (textEl) {
-                const text = textEl.innerText || textEl.textContent;
-                navigator.clipboard.writeText(text).then(() => {
-                  const originalText = copyBtn.innerHTML;
-                  copyBtn.innerHTML = "✅ Copied!";
-                  copyBtn.classList.add("copied");
-                  setTimeout(() => {
-                    copyBtn.innerHTML = originalText;
-                    copyBtn.classList.remove("copied");
-                  }, 2000);
-                }).catch(err => {
-                  console.error("Clipboard write failed: ", err);
-                });
-              }
-            }
-          }
-        } else if (tabBtn) {
-          const onclickAttr = tabBtn.getAttribute("onclick");
-          if (onclickAttr) {
-            const match = onclickAttr.match(/showPanel\(['"]([^'"]+)['"],\s*this\)/);
-            if (match) {
-              const panelId = match[1];
-              // Update tabs
-              shadowRoot.querySelectorAll(".platform-tab").forEach(btn => btn.classList.remove("active"));
-              tabBtn.classList.add("active");
-              // Update panels
-              shadowRoot.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-              const activePanel = shadowRoot.getElementById(`panel-${panelId}`);
-              if (activePanel) {
-                activePanel.classList.add("active");
-              }
-            }
-          }
-        }
-      };
-
-      shadowRoot.addEventListener("click", handleShadowClick);
-      return () => {
-        shadowRoot.removeEventListener("click", handleShadowClick);
-      };
-    }
-  }, [shadowRoot, html, css]);
-
-  return <div ref={hostRef} className="w-full h-full overflow-y-auto" />;
-}
+const BUILTIN_PLAYBOOK_TEMPLATES = [
+  {
+    id: "p-1",
+    category: "Architecture Audit",
+    title: "Database Query Latency Optimization",
+    channel: "LinkedIn / Twitter",
+    copy: "🚀 Optimization update: Reduced lookup latencies from 800ms down to 12ms.\n\nWhile auditing transaction logs in Supabase Postgres, composite queries were starting to drift. Added targeted indexes on lookup columns. Keep your infrastructure lean!\n\n#buildinpublic #backend #postgres",
+    hashtags: ["buildinpublic", "backend", "postgres"]
+  },
+  {
+    id: "p-2",
+    category: "Trading Quant Spec",
+    title: "Stateful Order Block Backtest Results",
+    channel: "Twitter / Telegram",
+    copy: "ETH/USDT Perp contract backtest completed (60-day period).\n\nKey metrics:\n- Profit Factor: 1.25\n- Win Rate: 58.4%\n- Max Drawdown: 4.2%\n\nExecuting logic local-first to control latency noise. No financial advice.",
+    hashtags: ["algotrading", "quants", "bybit"]
+  },
+  {
+    id: "p-3",
+    category: "Feature Launch",
+    title: "AI Multi-Channel Broadcast Center",
+    channel: "Facebook Page / Instagram",
+    copy: "Draft once with Gemini AI, adapt for every social channel, and publish automatically. Built 100% free for solo creators and developers. Try the live suite now! ⚡✨",
+    hashtags: ["aismarter", "socialmedia", "tech"]
+  }
+];
 
 export default function MarketingPlaybook() {
-  const [html, setHtml] = useState("");
-  const [css, setCss] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState(null);
 
-  useEffect(() => {
-    fetch("/playbook.html")
-      .then((res) => res.text())
-      .then((text) => {
-        const styleMatch = text.match(/<style[^>]*>([\s\S]*)<\/style>/i);
-        if (styleMatch) {
-          setCss(styleMatch[1]);
-        }
-        const bodyMatch = text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-        if (bodyMatch) {
-          setHtml(bodyMatch[1]);
-        } else {
-          setHtml(text);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error loading playbook:", err);
-        setLoading(false);
-      });
-  }, []);
+  const handleCopy = (id, text) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleUseInComposer = (copy) => {
+    localStorage.setItem("glitch_composer_draft", copy);
+    window.dispatchEvent(new CustomEvent('nav-change', { detail: 'composer' }));
+  };
 
   return (
-    <div className="flex-1 h-full flex flex-col overflow-hidden relative min-h-screen bg-[#121215] pb-32">
-      {/* Background glow for consistency with the rest of the app */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="glow-blob w-[500px] h-[500px] bg-accent/10 top-0 left-1/4 opacity-40" />
-      </div>
+    <div className="flex-1 min-h-screen bg-[#121215] p-4 md:p-8 relative pb-32">
+      {/* Background glow */}
+      <div className="glow-blob w-[500px] h-[500px] bg-accent/10 top-0 left-1/4 opacity-40 pointer-events-none" />
 
-      <div className="flex items-center justify-between px-8 py-6 border-b border-white/5 bg-surface/80 backdrop-blur-xl shrink-0 relative z-10">
+      {/* Header */}
+      <div className="max-w-6xl mx-auto mb-8 relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-accent mb-2">
-            <BookOpen size={14} /> Library
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-accent font-bold">
+            <BookOpen size={14} /> Marketing Library
           </div>
-          <h1 className="font-display text-2xl font-bold text-white flex items-center gap-2">
-            Marketing Playbook
+          <h1 className="font-display text-3xl font-bold text-white mt-1">
+            Marketing Playbook & High-Converting Templates
           </h1>
-          <p className="text-sm text-muted mt-1 font-medium">
-            Copy and paste high-converting templates natively.
+          <p className="text-xs text-muted mt-1 font-medium">
+            Copy and paste proven high-converting developer & trader copy templates directly into Composer.
           </p>
         </div>
       </div>
-      
-      <div className="flex-1 w-full relative z-10 overflow-hidden bg-black/20">
-        {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted font-mono">
-            Loading playbook...
+
+      {/* Templates Grid */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
+        {BUILTIN_PLAYBOOK_TEMPLATES.map((tmpl) => (
+          <div
+            key={tmpl.id}
+            className="bg-surface rounded-[28px] p-6 border border-white/5 hover:border-white/10 transition-all shadow-xl flex flex-col justify-between space-y-4"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase bg-accent/10 text-accent px-2.5 py-1 rounded-full border border-accent/20 font-bold">
+                  {tmpl.category}
+                </span>
+                <span className="text-[10px] font-mono text-muted">{tmpl.channel}</span>
+              </div>
+
+              <h3 className="font-bold text-white text-base tracking-tight">{tmpl.title}</h3>
+
+              <div className="bg-[#121215] p-4 rounded-2xl border border-white/5 text-xs text-white leading-relaxed font-mono whitespace-pre-line shadow-inner">
+                {tmpl.copy}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-2">
+              <button
+                onClick={() => handleCopy(tmpl.id, tmpl.copy)}
+                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-white/5"
+              >
+                {copiedId === tmpl.id ? <Check size={14} className="text-signal" /> : <Copy size={14} />}
+                <span>{copiedId === tmpl.id ? "Copied!" : "Copy Template"}</span>
+              </button>
+
+              <button
+                onClick={() => handleUseInComposer(tmpl.copy)}
+                className="flex-1 py-2.5 bg-accent text-[#121215] rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-md"
+              >
+                <Send size={14} /> Send to Composer
+              </button>
+            </div>
           </div>
-        ) : (
-          <SafeShadowRoot html={html} css={css} />
-        )}
+        ))}
       </div>
     </div>
   );
