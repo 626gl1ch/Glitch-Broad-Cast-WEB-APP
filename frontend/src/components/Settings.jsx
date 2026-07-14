@@ -6,20 +6,15 @@ import {
   Linkedin, 
   KeyRound, 
   Database,
-  Cpu,
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
   HelpCircle,
   Terminal,
-  Info,
-  ShieldAlert,
+  ShieldCheck,
   Save,
-  CreditCard,
-  Lock,
-  Unlock
+  Sparkles
 } from "lucide-react";
-import { getUsageCount, isSubscribed, isAdmin, setSubscribed, setAdmin } from "../utils/usage";
 import { api } from "../api";
 
 const CONNECTIONS = [
@@ -27,9 +22,8 @@ const CONNECTIONS = [
   { key: "ig", label: "Instagram ID", icon: Instagram, env: "META_IG_BUSINESS_ACCOUNT_ID", desc: "Allows publishing images/captions to Instagram Business." },
   { key: "li", label: "LinkedIn Access Token", icon: Linkedin, env: "LINKEDIN_ACCESS_TOKEN", desc: "Allows automated updates on LinkedIn Profile." },
   { key: "gemini", label: "Gemini AI Key", icon: KeyRound, env: "GEMINI_API_KEY", desc: "Powers post variations, alt text, and ideas chat." },
-  { key: "supabase", label: "Supabase DB URL", icon: Database, env: "SUPABASE_URL", desc: "Connects local backend to database tables." },
-  { key: "supabase_key", label: "Supabase Service Key", icon: Database, env: "SUPABASE_SERVICE_ROLE_KEY", desc: "Allows backend DB operations." },
-  { key: "paystack", label: "Paystack Public Key", icon: CreditCard, env: "PAYSTACK_PUBLIC_KEY", desc: "Powers the premium subscription paywall checkout." }
+  { key: "supabase", label: "Supabase DB URL", icon: Database, env: "SUPABASE_URL", desc: "Connects web application to Supabase tables." },
+  { key: "supabase_key", label: "Supabase Service Key", icon: Database, env: "SUPABASE_SERVICE_ROLE_KEY", desc: "Allows DB operations and vault media storage." },
 ];
 
 export default function Settings() {
@@ -68,7 +62,7 @@ export default function Settings() {
     setEnvMessage(null);
     try {
       localStorage.setItem("glitch_keys", JSON.stringify(envValues));
-      setEnvMessage({ type: "success", text: "Saved successfully to local device." });
+      setEnvMessage({ type: "success", text: "Saved successfully to browser storage." });
       setTimeout(() => setEnvMessage(null), 3000);
     } catch (error) {
       setEnvMessage({ type: "error", text: "Failed to save: " + error.message });
@@ -87,25 +81,25 @@ export default function Settings() {
       });
       setTestResults(results);
       setTesting(false);
-    }, 1500);
+    }, 1200);
   };
 
   return (
-    <div className="p-5 md:p-8 relative min-h-screen bg-[#121215] pb-32">
+    <div className="p-4 md:p-8 relative min-h-screen bg-[#121215] pb-32">
       {/* Background glow */}
-      <div className="glow-blob w-[500px] h-[500px] bg-accent/10 -bottom-20 right-0 opacity-60" />
+      <div className="glow-blob w-[500px] h-[500px] bg-accent/10 -bottom-20 right-0 opacity-60 pointer-events-none" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 max-w-6xl mx-auto relative z-10">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-accent">
-            <SettingsIcon size={14} className="text-accent" /> System Settings
+            <SettingsIcon size={14} className="text-accent" /> Web App Control Center
           </div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-white mt-1">
-            Connections & Diagnostics
+            API Keys & Edge Connections
           </h1>
           <p className="text-muted text-[13px] mt-1.5 font-light leading-relaxed">
-            Keys are now stored securely on your local device and sent directly per-request.
+            All credentials are stored locally in your encrypted web session and sent securely per API call.
           </p>
         </div>
 
@@ -113,127 +107,65 @@ export default function Settings() {
         <button
           onClick={runConnectionTests}
           disabled={testing}
-          className="flex items-center justify-center gap-2 text-sm font-bold px-6 py-3.5 rounded-full transition-all shrink-0 w-full md:w-auto shadow-lg bg-accent text-[#121215] hover:scale-105 active:scale-95 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 text-sm font-bold px-6 py-3.5 rounded-full transition-all shrink-0 w-full md:w-auto shadow-lg bg-accent text-[#121215] hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
         >
           {testing ? <RefreshCw size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-          <span>{testing ? "Testing connections..." : "Test Environment Keys"}</span>
+          <span>{testing ? "Testing connections..." : "Validate All Keys"}</span>
         </button>
       </div>
 
+      {/* Backend & Cloudflare Edge URL */}
       <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 flex flex-col md:flex-row md:items-end justify-between gap-6 shadow-xl relative z-10">
         <div className="flex-1 w-full">
           <h3 className="text-sm font-bold text-white tracking-wide mb-3 flex items-center gap-2">
-            Mobile Backend URL <span className="text-[10px] text-muted font-normal uppercase">(Local IP or ngrok)</span>
+            Backend & Cloudflare Edge API URL <span className="text-[10px] text-muted font-normal uppercase">(Local or Cloudflare Worker)</span>
           </h3>
           <input 
             type="text" 
             value={backendUrl}
             onChange={(e) => setBackendUrl(e.target.value)}
-            placeholder="e.g. http://192.168.1.XX:8787/api or https://xxxx.ngrok-free.app/api"
+            placeholder="e.g. https://glitch-broadcast-api.workers.dev/api or http://localhost:8787/api"
             className="w-full bg-[#121215] rounded-[24px] px-5 py-4 text-white text-[13px] font-mono placeholder:text-muted outline-none focus:border-accent/50 border border-transparent transition-all shadow-inner"
           />
         </div>
         <button
           onClick={saveBackendUrl}
-          className="flex items-center justify-center gap-2 text-sm font-bold text-accent bg-accent/10 px-6 py-4 rounded-full hover:bg-accent/20 transition-all shrink-0 active:scale-95 w-full md:w-auto"
+          className="flex items-center justify-center gap-2 text-sm font-bold text-accent bg-accent/10 px-6 py-4 rounded-full hover:bg-accent/20 transition-all shrink-0 active:scale-95 w-full md:w-auto cursor-pointer"
         >
           <CheckCircle2 size={18} />
-          <span>Save & Reload</span>
+          <span>Save & Connect</span>
         </button>
       </div>
 
-      <div className="max-w-6xl mx-auto mb-8 p-6 rounded-[32px] border border-alert/20 bg-alert/5 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-inner relative z-10">
-        <div>
-          <h3 className="text-sm font-bold text-alert tracking-wide mb-1.5 flex items-center gap-2">
-            <ShieldAlert size={16} /> Legal Agreements
-          </h3>
-          <p className="text-[12px] text-alert/70 leading-relaxed">Reset your agreement to the Glitch EnterPrice Terms and Conditions. This will force the prompt to reappear on reload.</p>
-        </div>
-        <button
-          onClick={() => {
-            localStorage.removeItem("glitch_terms_agreed");
-            window.location.reload();
-          }}
-          className="flex items-center justify-center gap-2 text-xs font-bold text-alert bg-alert/10 px-5 py-3 rounded-full hover:bg-alert/20 transition-all shrink-0 w-full md:w-auto"
-        >
-          <span>Reset Terms</span>
-        </button>
-      </div>
-
-      {/* Subscription & Paywall Diagnostics Card */}
-      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-6">
-        <div>
-          <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-            <CreditCard size={18} className="text-accent" /> Subscription & Paywall Controls
-          </h3>
-          <p className="text-muted text-xs mt-1">
-            Monitor and override subscription access parameters for diagnostic testing.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#121215] p-5 rounded-2xl border border-white/5 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-muted">License Status</span>
-            <p className="text-sm font-bold text-white flex items-center gap-2 mt-1">
-              {isAdmin() ? (
-                <>
-                  <Unlock size={16} className="text-[#43FFB0]" />
-                  <span className="text-[#43FFB0]">Admin Team Bypass</span>
-                </>
-              ) : isSubscribed() ? (
-                <>
-                  <CheckCircle2 size={16} className="text-[#43FFB0]" />
-                  <span className="text-[#43FFB0]">Premium Active</span>
-                </>
-              ) : (
-                <>
-                  <Lock size={16} className="text-alert" />
-                  <span className="text-alert">Free Trial Mode</span>
-                </>
-              )}
-            </p>
-          </div>
-
-          <div className="bg-[#121215] p-5 rounded-2xl border border-white/5 space-y-1">
-            <span className="text-[10px] uppercase font-mono text-muted">Trial Usage Count</span>
-            <p className="text-sm font-bold text-white mt-1">
-              {isSubscribed() ? "Unlimited (Pro)" : `${getUsageCount()} / 3 Actions Used`}
-            </p>
-          </div>
-
-          <div className="flex flex-col justify-center gap-3">
-            <button
-              onClick={() => {
-                localStorage.setItem("glitch_usage_count", "0");
-                window.dispatchEvent(new Event("glitch-usage-change"));
-                alert("Trial usage count successfully reset to 0.");
-              }}
-              className="w-full text-center text-xs font-bold text-[#121215] bg-[#43FFB0] px-4 py-3 rounded-full hover:bg-[#43FFB0]/90 transition-all cursor-pointer active:scale-95"
-            >
-              Reset Free Trial Usage
-            </button>
-            <button
-              onClick={() => {
-                setSubscribed(false);
-                setAdmin(false);
-                localStorage.setItem("glitch_usage_count", "0");
-                window.dispatchEvent(new Event("glitch-usage-change"));
-                alert("License status revoked. Returned to Free Trial (0/3).");
-              }}
-              className="w-full text-center text-xs font-bold text-alert bg-alert/10 px-4 py-3 rounded-full hover:bg-alert/20 transition-all cursor-pointer active:scale-95 border border-alert/20"
-            >
-              Revoke License & Reset
-            </button>
+      {/* Free License Status Banner */}
+      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-signal/20 shadow-xl relative z-10 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-signal/10 border border-signal/30 flex items-center justify-center text-signal">
+              <ShieldCheck size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">License Model: 100% Free Web Edition</span>
+                <span className="text-[10px] font-mono font-bold uppercase bg-signal/20 text-signal px-2.5 py-0.5 rounded-full border border-signal/30 flex items-center gap-1">
+                  <Sparkles size={10} /> Unlimited
+                </span>
+              </div>
+              <p className="text-xs text-muted mt-0.5">
+                All AI post generation, multi-platform publishing, scheduling, alt-text creation, and assisted group features are completely free. Zero paywalls, zero fees.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Keys & Setup Guide */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start relative z-10">
         
         {/* Left: Environment Keys List */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-base font-bold text-white tracking-tight">Environment Setup</h3>
+            <h3 className="text-base font-bold text-white tracking-tight">API & Platform Credentials</h3>
             <div className="flex items-center gap-3">
               {envMessage && (
                 <span className={`text-[11px] font-bold ${envMessage.type === "success" ? "text-signal" : "text-alert"}`}>
@@ -243,10 +175,10 @@ export default function Settings() {
               <button
                 onClick={saveEnvVariables}
                 disabled={isSavingEnv}
-                className="flex items-center gap-2 text-xs font-bold text-accent bg-accent/10 px-4 py-2.5 rounded-full hover:bg-accent/20 transition-all disabled:opacity-50"
+                className="flex items-center gap-2 text-xs font-bold text-accent bg-accent/10 px-4 py-2.5 rounded-full hover:bg-accent/20 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isSavingEnv ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                Save to Device
+                Save Credentials
               </button>
             </div>
           </div>
@@ -278,27 +210,27 @@ export default function Settings() {
                           type="text"
                           value={envValues[c.env] || ""}
                           onChange={(e) => handleEnvChange(c.env, e.target.value)}
-                          placeholder="Paste token or key here..."
+                          placeholder="Paste key / token here..."
                           className="flex-1 min-w-0 bg-[#121215] rounded-[16px] px-4 py-2 text-white text-xs font-mono placeholder:text-muted outline-none focus:border-accent/50 border border-transparent shadow-inner transition-all"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Diagnosed State */}
+                  {/* Diagnostic State */}
                   <div className="shrink-0 font-mono text-[11px] self-start sm:self-center">
                     {result ? (
                       result.ok ? (
                         <div className="flex items-center gap-2 text-signal bg-signal/10 px-3 py-1.5 rounded-full font-bold">
-                          <CheckCircle2 size={13} /> <span>{result.latency}</span>
+                          <CheckCircle2 size={13} /> <span>Ready</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2 text-alert bg-alert/10 px-3 py-1.5 rounded-full font-bold" title={result.error}>
+                        <div className="flex items-center gap-2 text-alert bg-alert/10 px-3 py-1.5 rounded-full font-bold">
                           <AlertTriangle size={13} /> <span>Missing</span>
                         </div>
                       )
                     ) : (
-                      <span className="text-muted font-bold uppercase tracking-widest text-[9px] bg-white/5 px-3 py-1.5 rounded-full">Not Tested</span>
+                      <span className="text-muted font-bold uppercase tracking-widest text-[9px] bg-white/5 px-3 py-1.5 rounded-full">Unverified</span>
                     )}
                   </div>
 
@@ -308,62 +240,44 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Right: Walkthrough Instructions */}
+        {/* Right: Quick Start Walkthrough */}
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
             <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-              <HelpCircle size={18} className="text-accent" /> Free Setup Guide
+              <HelpCircle size={18} className="text-accent" /> Quick Setup Guide
             </h3>
           </div>
 
           <div className="bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 space-y-6 text-xs text-muted leading-relaxed shadow-xl">
             
-            {/* Guide Step 1 */}
             <div className="space-y-2">
               <h4 className="text-white font-bold flex items-center gap-2 text-sm">
                 <span className="text-[10px] font-mono text-[#121215] font-black bg-accent w-6 h-6 rounded-full flex items-center justify-center shadow-md">1</span>
-                Supabase Tables
+                Supabase Connection
               </h4>
               <p className="pl-8 text-[12px]">
-                Create a free project at supabase.com. In SQL Editor, paste and run the <code className="font-mono text-white bg-white/10 px-1 rounded">backend/db/schema.sql</code> script. Create a public Storage Bucket named <code className="font-mono text-white bg-white/10 px-1 rounded">content-vault</code>.
+                Create a free project at supabase.com, run <code className="font-mono text-white bg-white/10 px-1 rounded">backend/db/schema.sql</code> in SQL Editor, and paste your URL & Service Key above.
               </p>
             </div>
 
-            {/* Guide Step 2 */}
             <div className="space-y-2">
               <h4 className="text-white font-bold flex items-center gap-2 text-sm">
                 <span className="text-[10px] font-mono text-[#121215] font-black bg-accent w-6 h-6 rounded-full flex items-center justify-center shadow-md">2</span>
-                Gemini API Key
+                Gemini AI Studio Key
               </h4>
               <p className="pl-8 text-[12px]">
-                Go to Google AI Studio (aistudio.google.com) and create a free key. This powers chat brainstorming and variants generation.
+                Get a free key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-accent underline">aistudio.google.com</a>. Powers post generation, alt text, and chat.
               </p>
             </div>
 
-            {/* Guide Step 3 */}
             <div className="space-y-2">
               <h4 className="text-white font-bold flex items-center gap-2 text-sm">
                 <span className="text-[10px] font-mono text-[#121215] font-black bg-accent w-6 h-6 rounded-full flex items-center justify-center shadow-md">3</span>
-                Meta Facebook Devs
+                Social Media Keys
               </h4>
               <p className="pl-8 text-[12px]">
-                Create a Facebook Page, register an app at developers.facebook.com, link Page Permissions, and get a long-lived Page Token for auto-posting.
+                Add Page Tokens for Facebook Pages & Instagram Business, or use Assisted Posting for Facebook Groups.
               </p>
-            </div>
-
-            {/* Guide Step 4 */}
-            <div className="space-y-2 border-t border-white/5 pt-5">
-              <h4 className="text-white font-bold flex items-center gap-2 text-sm">
-                <span className="text-[10px] font-mono text-[#121215] font-black bg-accent w-6 h-6 rounded-full flex items-center justify-center shadow-md">4</span>
-                Local Run Command
-              </h4>
-              <div className="pl-8 space-y-2.5">
-                <p className="text-[12px]">Run backend server in your command prompt:</p>
-                <div className="bg-[#121215] p-3.5 rounded-2xl border border-white/5 font-mono text-[11px] text-accent select-all flex items-center gap-2 shadow-inner">
-                  <Terminal size={14} className="opacity-50" />
-                  <span className="tracking-widest">cd backend; npm run dev</span>
-                </div>
-              </div>
             </div>
 
           </div>

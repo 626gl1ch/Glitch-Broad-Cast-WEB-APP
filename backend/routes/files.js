@@ -1,13 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { getSupabase } = require("../services/supabase");
+const { supabase, requireAuth } = require("../middleware/auth");
 const gemini = require("../services/gemini");
 
 // List content vault items, optionally filtered by folder
-router.get("/", async (req, res) => {
-  const supabase = getSupabase(req);
+router.get("/", requireAuth, async (req, res) => {
   const { folder } = req.query;
-  let query = supabase.from("content_items").select("*").order("created_at", { ascending: false });
+  let query = supabase.from("content_items").select("*").eq("user_id", req.user.id).order("created_at", { ascending: false });
   if (folder) query = query.eq("folder", folder);
 
   const { data, error } = await query;
@@ -16,8 +15,7 @@ router.get("/", async (req, res) => {
 });
 
 // Upload a file to Supabase Storage and register it in content_items
-router.post("/upload", async (req, res) => {
-  const supabase = getSupabase(req);
+router.post("/upload", requireAuth, async (req, res) => {
   if (!req.files || !req.files.file) {
     return res.status(400).json({ error: "No file uploaded" });
   }
@@ -51,6 +49,7 @@ router.post("/upload", async (req, res) => {
     const { data: item, error: dbErr } = await supabase
       .from("content_items")
       .insert({
+        user_id: req.user.id,
         name: file.name,
         folder,
         file_url: urlData.publicUrl,
@@ -67,9 +66,8 @@ router.post("/upload", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
-  const supabase = getSupabase(req);
-  const { error } = await supabase.from("content_items").delete().eq("id", req.params.id);
+router.delete("/:id", requireAuth, async (req, res) => {
+  const { error } = await supabase.from("content_items").delete().eq("id", req.params.id).eq("user_id", req.user.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });
 });

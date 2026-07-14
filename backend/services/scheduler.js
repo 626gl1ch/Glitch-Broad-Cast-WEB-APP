@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const supabase = require("./supabase");
+const { supabase } = require("../middleware/auth");
 const meta = require("./meta");
 const linkedin = require("./linkedin");
 

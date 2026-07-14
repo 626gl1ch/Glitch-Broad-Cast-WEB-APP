@@ -2,8 +2,8 @@
 > Project: **Glitch Broadcast** (`glitch-broadcast-backend`)
 > Stack: Node.js / Express, Supabase (PostgreSQL + Storage), Google Gemini AI,
 > Meta Graph API, LinkedIn API, Puppeteer (assisted Facebook Group posting).
-> **Cloudflare and Paystack are NOT used in this project.** Do not assume or
-> suggest MCP connections for either service here.
+> **Cloudflare is NOT used in this project.** Do not assume or
+> suggest MCP connections for it here. Paystack IS used for subscriptions.
 
 ---
 
@@ -71,11 +71,9 @@ MCP server for this workspace.
 
 ---
 
-## A.3 — Paystack MCP
+## A.3 — Paystack Integration
 
-**Not applicable.** This project has no payment processing, subscriptions, or
-Paystack integration. Do not propose or configure a Paystack MCP server for this
-workspace.
+Paystack is used for subscriptions. A backend endpoint handles webhooks and initialization.
 
 ---
 

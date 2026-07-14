@@ -1,12 +1,12 @@
 const express = require("express");
 const router = express.Router();
-const { getSupabase } = require("../services/supabase");
+const { supabase, requireAuth } = require("../middleware/auth");
 const meta = require("../services/meta");
 const linkedin = require("../services/linkedin");
 
 // Publish a single variant via its platform's official API
-router.post("/:variantId", async (req, res) => {
-  const supabase = getSupabase(req);
+// Publish a single variant via its platform's official API
+router.post("/:variantId", requireAuth, async (req, res) => {
   const { variantId } = req.params;
   const { imageUrl } = req.body;
 
@@ -14,6 +14,7 @@ router.post("/:variantId", async (req, res) => {
     .from("post_variants")
     .select("*")
     .eq("id", variantId)
+    .eq("user_id", req.user.id)
     .single();
   if (error || !variant) return res.status(404).json({ error: "Variant not found" });
 
@@ -53,14 +54,16 @@ router.post("/:variantId", async (req, res) => {
         platform_post_id: result.platform_post_id,
         posted_at: new Date().toISOString(),
       })
-      .eq("id", variantId);
+      .eq("id", variantId)
+      .eq("user_id", req.user.id);
 
     res.json({ success: true, ...result });
   } catch (err) {
     await supabase
       .from("post_variants")
       .update({ publish_status: "failed", error_message: err.message })
-      .eq("id", variantId);
+      .eq("id", variantId)
+      .eq("user_id", req.user.id);
     res.status(500).json({ error: err.message });
   }
 });

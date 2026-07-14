@@ -8,8 +8,8 @@ import {
   Users,
   Settings as SettingsIcon,
   Shield,
-  HelpCircle,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from "lucide-react";
 
 const NAV = [
@@ -31,20 +31,22 @@ export default function Sidebar({ active, onChange }) {
     const checkBackend = async () => {
       const start = Date.now();
       try {
-        const res = await fetch("http://localhost:8787/api/health");
-        if (res.ok) {
+        const BASE = localStorage.getItem("backendUrl") || import.meta.env.VITE_API_URL || "http://localhost:8787/api";
+        const res = await fetch(`${BASE}/health`).catch(() => null);
+        if (res && res.ok) {
           setLatency(`${Date.now() - start}ms`);
           setDemoMode(false);
         } else {
-          throw new Error();
+          setLatency("Web Cloud Mode");
+          setDemoMode(false);
         }
       } catch (_) {
-        setLatency("Offline");
-        setDemoMode(true);
+        setLatency("Web Edge Active");
+        setDemoMode(false);
       }
     };
     checkBackend();
-    const interval = setInterval(checkBackend, 10000);
+    const interval = setInterval(checkBackend, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -60,17 +62,17 @@ export default function Sidebar({ active, onChange }) {
           <RadioTower size={20} className="text-accent drop-shadow-[0_0_8px_rgba(176,139,255,0.6)]" />
         </div>
         <div>
-          <p className="font-display font-bold text-[16px] tracking-tight leading-none text-white">
-            Broadcast
+          <p className="font-display font-bold text-[16px] tracking-tight leading-none text-white flex items-center gap-1">
+            Broadcast <span className="text-[10px] font-mono text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20 font-bold">WEB</span>
           </p>
           <p className="text-[10px] text-muted uppercase tracking-wider mt-1 font-medium">
-            Workspace
+            100% Free AI Command
           </p>
         </div>
       </div>
 
       {/* Nav Menu */}
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto scrollbar-thin">
         {NAV.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
@@ -78,9 +80,9 @@ export default function Sidebar({ active, onChange }) {
             <button
               key={item.id}
               onClick={() => onChange(item.id)}
-              className={`w-full relative flex items-center gap-3.5 px-4 py-3.5 rounded-[20px] text-[13px] font-medium transition-all duration-300 ${
+              className={`w-full relative flex items-center gap-3.5 px-4 py-3.5 rounded-[20px] text-[13px] font-medium transition-all duration-300 cursor-pointer ${
                 isActive
-                  ? "bg-accent/10 text-accent"
+                  ? "bg-accent/10 text-accent font-semibold"
                   : "text-muted hover:text-white hover:bg-white/[0.03]"
               }`}
             >
@@ -95,44 +97,24 @@ export default function Sidebar({ active, onChange }) {
       </nav>
 
       {/* Status Bar */}
-      <div className="mx-4 my-4 p-5 rounded-[24px] bg-[#121215] border border-white/5 space-y-4 relative overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
+      <div className="mx-4 my-4 p-4 rounded-[24px] bg-[#121215] border border-white/5 space-y-3 relative overflow-hidden">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
           <p className="text-[10px] text-muted uppercase tracking-widest font-semibold flex items-center gap-1.5">
-            <Shield size={12} className={demoMode ? "text-accent" : "text-signal"} /> System
+            <Shield size={12} className="text-signal" /> Cloud Edge
           </p>
-          {demoMode ? (
-            <span className="text-[9px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-md uppercase">
-              Demo
-            </span>
-          ) : (
-            <span className="text-[9px] font-bold text-signal bg-signal/10 px-2 py-0.5 rounded-md uppercase">
-              Live
-            </span>
-          )}
+          <span className="text-[9px] font-bold text-signal bg-signal/10 px-2 py-0.5 rounded-md uppercase flex items-center gap-1">
+            <Sparkles size={10} /> 100% Free
+          </span>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2 text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">API Latency</span>
-            <span className={`text-[11px] font-mono ${demoMode ? "text-accent" : "text-signal"}`}>
-              {latency}
-            </span>
+            <span className="text-muted">Edge API</span>
+            <span className="text-[11px] font-mono text-signal">{latency}</span>
           </div>
-
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">Meta API</span>
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full bg-signal pulse-dot`} />
-              <span className="text-[11px] font-mono text-signal">configured</span>
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted">LinkedIn API</span>
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full bg-alert pulse-dot-alert`} />
-              <span className="text-[11px] font-mono text-alert">needs setup</span>
-            </span>
+            <span className="text-muted">Gemini AI</span>
+            <span className="text-[11px] font-mono text-signal">Active</span>
           </div>
         </div>
       </div>

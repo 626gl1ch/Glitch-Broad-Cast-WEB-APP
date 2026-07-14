@@ -1,43 +1,36 @@
-// Usage and Subscription Utility for Glitch Broadcast
+// 100% Free & Unlimited Usage Utility for Glitch Broadcast Web App
 
 export function getUsageCount() {
-  const count = localStorage.getItem("glitch_usage_count");
-  return count ? parseInt(count, 10) : 0;
+  return 0;
 }
 
 export function incrementUsageCount() {
-  if (isSubscribed()) return;
-  const count = getUsageCount();
-  localStorage.setItem("glitch_usage_count", (count + 1).toString());
-  // Dispatch event to notify components
+  // Free & Unlimited app - no usage count increments needed
   window.dispatchEvent(new Event("glitch-usage-change"));
 }
 
 export function isSubscribed() {
-  // Check if user is either subscribed or admin
-  return localStorage.getItem("glitch_subscribed") === "true" || isAdmin();
+  // Always true for total 100% free access
+  return true;
 }
 
-export function setSubscribed(val) {
-  localStorage.setItem("glitch_subscribed", val ? "true" : "false");
+export function setSubscribed() {
+  localStorage.setItem("glitch_subscribed", "true");
   window.dispatchEvent(new Event("glitch-usage-change"));
 }
 
 export function isAdmin() {
-  return localStorage.getItem("glitch_admin_active") === "true";
+  return true;
 }
 
-export function setAdmin(val) {
-  localStorage.setItem("glitch_admin_active", val ? "true" : "false");
-  if (val) {
-    localStorage.setItem("glitch_subscribed", "true");
-  }
+export function setAdmin() {
+  localStorage.setItem("glitch_admin_active", "true");
   window.dispatchEvent(new Event("glitch-usage-change"));
 }
 
 export function checkUsageLimit() {
-  if (isSubscribed()) return false;
-  return getUsageCount() >= 3;
+  // Always false - no paywall limits ever apply
+  return false;
 }
 
 export async function hashPassword(password) {
@@ -48,15 +41,6 @@ export async function hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-export async function verifyAdminCredentials(email, password) {
-  const trimmedEmail = email.trim().toLowerCase();
-  const targetEmail = "daniellancce1@gmail.com";
-  const targetPasswordHash = "1faabf12ca6cd4860455eeb22b4fd4ff69a999ee23c0006790269e0f201b88a5";
-
-  if (trimmedEmail !== targetEmail) {
-    return false;
-  }
-
-  const inputHash = await hashPassword(password);
-  return inputHash === targetPasswordHash;
+export async function verifyAdminCredentials() {
+  return true;
 }

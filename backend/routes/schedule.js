@@ -1,10 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { getSupabase } = require("../services/supabase");
+const { supabase, requireAuth } = require("../middleware/auth");
 
 // Schedule a post for a future time
-router.post("/:postId", async (req, res) => {
-  const supabase = getSupabase(req);
+// Schedule a post for a future time
+router.post("/:postId", requireAuth, async (req, res) => {
   const { postId } = req.params;
   const { scheduledFor } = req.body;
   if (!scheduledFor) return res.status(400).json({ error: "scheduledFor is required" });
@@ -13,6 +13,7 @@ router.post("/:postId", async (req, res) => {
     .from("posts")
     .update({ status: "scheduled", scheduled_for: scheduledFor })
     .eq("id", postId)
+    .eq("user_id", req.user.id)
     .select()
     .single();
 
@@ -21,12 +22,13 @@ router.post("/:postId", async (req, res) => {
 });
 
 // Calendar view: everything scheduled between two dates
-router.get("/calendar", async (req, res) => {
-  const supabase = getSupabase(req);
+// Calendar view: everything scheduled between two dates
+router.get("/calendar", requireAuth, async (req, res) => {
   const { from, to } = req.query;
   let query = supabase
     .from("posts")
     .select("*, post_variants(*)")
+    .eq("user_id", req.user.id)
     .eq("status", "scheduled")
     .order("scheduled_for", { ascending: true });
 
