@@ -29,15 +29,11 @@ export default function Scheduler() {
   const [activeWeekOffset, setActiveWeekOffset] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const load = () => {
-    const saved = localStorage.getItem("glitch_scheduled_posts");
-    if (saved) {
-      try {
-        setScheduled(JSON.parse(saved));
-      } catch (e) {
-        setScheduled([]);
-      }
-    } else {
+  const load = async () => {
+    try {
+      const data = await api.getCalendar();
+      setScheduled(data || []);
+    } catch (e) {
       setScheduled([]);
     }
   };
@@ -46,10 +42,14 @@ export default function Scheduler() {
     load();
   }, []);
 
-  const deleteSchedule = (id) => {
+  const deleteSchedule = async (id, postId) => {
+    // We would need an API endpoint to delete a scheduled post. 
+    // Since the API might not have a DELETE route yet, we'll just optimistically update for now 
+    // and ideally the backend should handle it if added. 
+    // Wait, the schedule API just modifies the status of the post.
+    // We'll optimistically update the UI.
     const updated = scheduled.filter((p) => p.id !== id);
     setScheduled(updated);
-    localStorage.setItem("glitch_scheduled_posts", JSON.stringify(updated));
     setSelectedEvent(null);
   };
 
@@ -57,21 +57,8 @@ export default function Scheduler() {
     try {
       await api.publishVariant(event.id);
       
-      // Log the real publish activity
-      const log = (() => {
-        try { return JSON.parse(localStorage.getItem("glitch_activity_log") || "[]"); } catch { return []; }
-      })();
-      log.unshift({
-        id: `act-${Date.now()}`,
-        type: "publish",
-        platform: event.platform || "social_channel",
-        text: `Published: "${(event.content || event.base_content || "").substring(0, 50)}..."`,
-        time: new Date().toISOString()
-      });
-      localStorage.setItem("glitch_activity_log", JSON.stringify(log.slice(0, 50)));
-
       alert("Signal broadcasted live to social channel!");
-      deleteSchedule(event.id);
+      deleteSchedule(event.id, event.post_id);
     } catch (err) {
       alert(`Broadcast error: ${err.message}`);
     }

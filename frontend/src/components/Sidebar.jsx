@@ -118,6 +118,13 @@ export default function Sidebar({ active, onChange }) {
             <span className="text-[11px] font-mono text-signal">Active</span>
           </div>
         </div>
+        
+        <button 
+          onClick={() => window.dispatchEvent(new CustomEvent('open-feedback'))}
+          className="w-full mt-3 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-2 rounded-xl transition-colors"
+        >
+          <MessageSquare size={14} /> Send Feedback
+        </button>
       </div>
     </aside>
   );

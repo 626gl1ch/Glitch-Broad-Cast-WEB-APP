@@ -10,6 +10,7 @@ create table if not exists profiles (
   role text default 'user',             -- 'user' or 'admin'
   subscription_status text default 'inactive', -- 'active' or 'inactive'
   usage_count int default 0,
+  settings jsonb default '{}'::jsonb,   -- Store API keys and social media IDs
   created_at timestamptz default now()
 );
 
@@ -113,3 +114,102 @@ create policy "Admins see all variants" on post_variants for all using (exists (
 create policy "Admins see all chat" on chat_messages for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
 create policy "Admins see all queue" on assisted_posting_queue for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
 
+
+-- V2 Overhaul Tables
+
+-- Gemini Configuration Mapping
+create table if not exists gemini_config (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  task_type text not null,       -- caption_gen, reply_gen, strategy, image_gen
+  model_id text not null,        -- e.g. gemini-3.5-flash
+  temperature numeric default 0.7,
+  max_tokens int default 1500,
+  updated_at timestamptz default now()
+);
+create index if not exists idx_gemini_config_user_id on gemini_config(user_id);
+alter table gemini_config enable row level security;
+create policy "Users manage own gemini config" on gemini_config using (auth.uid() = user_id);
+create policy "Admins see all gemini config" on gemini_config for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+
+-- Post Metrics tracking
+create table if not exists post_metrics (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  post_id uuid references posts(id) on delete cascade,
+  platform text,
+  likes int default 0,
+  comments int default 0,
+  shares int default 0,
+  reach int default 0,
+  views int default 0,
+  scraped_at timestamptz default now()
+);
+create index if not exists idx_post_metrics_user_id on post_metrics(user_id);
+alter table post_metrics enable row level security;
+create policy "Users manage own post metrics" on post_metrics using (auth.uid() = user_id);
+create policy "Admins see all post metrics" on post_metrics for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+
+-- Group Posting Tracker (Dedup & Frequency)
+create table if not exists group_posts (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  group_id text,
+  group_name text,
+  post_id uuid references posts(id) on delete cascade,
+  variant_id uuid references post_variants(id) on delete cascade,
+  posted_at timestamptz default now()
+);
+create index if not exists idx_group_posts_user_id on group_posts(user_id);
+alter table group_posts enable row level security;
+create policy "Users manage own group posts" on group_posts using (auth.uid() = user_id);
+create policy "Admins see all group posts" on group_posts for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+
+-- Comment Reply System
+create table if not exists comments (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  post_id uuid references posts(id) on delete cascade,
+  platform text,
+  author text,
+  content text,
+  sentiment text, -- positive, negative, question
+  replied boolean default false,
+  created_at timestamptz default now()
+);
+create index if not exists idx_comments_user_id on comments(user_id);
+alter table comments enable row level security;
+create policy "Users manage own comments" on comments using (auth.uid() = user_id);
+create policy "Admins see all comments" on comments for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+
+-- Feedback & Suggestions
+create table if not exists feedback (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  type text default 'suggestion', -- suggestion, bug
+  message text not null,
+  status text default 'pending',
+  created_at timestamptz default now()
+);
+create index if not exists idx_feedback_user_id on feedback(user_id);
+alter table feedback enable row level security;
+create policy "Users manage own feedback" on feedback using (auth.uid() = user_id);
+create policy "Admins see all feedback" on feedback for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+
+-- Subscription tracking (Paystack / Crypto)
+create table if not exists subscriptions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users(id) on delete cascade,
+  plan_type text default 'monthly',
+  amount numeric,
+  currency text default 'USD',
+  provider text, -- paystack, nowpayments
+  reference text,
+  status text default 'active',
+  expires_at timestamptz,
+  created_at timestamptz default now()
+);
+create index if not exists idx_subscriptions_user_id on subscriptions(user_id);
+alter table subscriptions enable row level security;
+create policy "Users view own subscriptions" on subscriptions for select using (auth.uid() = user_id);
+create policy "Admins manage subscriptions" on subscriptions for all using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));

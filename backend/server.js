@@ -10,6 +10,9 @@ const groupsRoutes = require("./routes/groups");
 const filesRoutes = require("./routes/files");
 const scheduleRoutes = require("./routes/schedule");
 const billingRoutes = require("./routes/billing");
+const statsRoutes = require("./routes/stats");
+const meRoutes = require("./routes/me");
+const geminiConfigRoutes = require("./routes/geminiConfig");
 const { startScheduler } = require("./services/scheduler");
 
 const app = express();
@@ -22,9 +25,7 @@ const { requireAuth } = require("./middleware/auth");
 
 app.get("/api/health", (req, res) => res.json({ ok: true, name: "Glitch Broadcast API" }));
 
-app.get("/api/me", requireAuth, (req, res) => {
-  res.json({ profile: req.user.profile });
-});
+app.use("/api/me", meRoutes);
 
 app.use("/api/chat", chatRoutes);
 app.use("/api/compose", composeRoutes);
@@ -33,6 +34,8 @@ app.use("/api/groups", groupsRoutes);
 app.use("/api/files", filesRoutes);
 app.use("/api/schedule", scheduleRoutes);
 app.use("/api/billing", billingRoutes);
+app.use("/api/stats", statsRoutes);
+app.use("/api/gemini-config", geminiConfigRoutes);
 
 
 const PORT = process.env.PORT || 8787;

@@ -12,6 +12,7 @@ import Settings from "./components/Settings";
 import MarketingPlaybook from "./components/MarketingPlaybook";
 import AuthModal from "./components/AuthModal";
 import GoogleAdBanner from "./components/GoogleAdBanner";
+import FeedbackModal from "./components/FeedbackModal";
 
 const VIEWS = {
   dashboard: Dashboard,
@@ -27,6 +28,7 @@ const VIEWS = {
 export default function App() {
   const [active, setActive] = useState("dashboard");
   const [session, setSession] = useState(null);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   // CRITICAL FIX: Listen to nav-change custom events from child components
   useEffect(() => {
@@ -37,8 +39,14 @@ export default function App() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     };
+    const handleOpenFeedback = () => setIsFeedbackOpen(true);
+    
     window.addEventListener("nav-change", handleNavChange);
-    return () => window.removeEventListener("nav-change", handleNavChange);
+    window.addEventListener("open-feedback", handleOpenFeedback);
+    return () => {
+      window.removeEventListener("nav-change", handleNavChange);
+      window.removeEventListener("open-feedback", handleOpenFeedback);
+    };
   }, []);
 
   // Load draft from playbook "Send to Composer"
@@ -60,6 +68,7 @@ export default function App() {
       <div className="fixed inset-0 z-[-1]" style={{ backgroundImage: 'var(--bg-gradient)' }} />
       <AuthModal session={session} setSession={setSession} />
       <TermsModal />
+      <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
       <Sidebar active={active} onChange={setActive} />
       
       <main className="flex-1 overflow-y-auto scrollbar-thin pb-28 md:pb-6 px-4 md:px-8 pt-4" style={{ WebkitOverflowScrolling: 'touch' }}>

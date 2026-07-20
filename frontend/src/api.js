@@ -33,16 +33,25 @@ Do not generate content that:
 `;
 
 // Direct Client AI Dispatcher (Gemini, Claude, DeepSeek)
-async function dispatchDirectAiCall(systemPrompt, userPrompt) {
+async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "caption_gen") {
   const keys = getAppKeys();
   const provider = getActiveAiProvider();
+  
+  let geminiConfig = [];
+  try {
+    geminiConfig = JSON.parse(localStorage.getItem("glitch_gemini_config") || "[]");
+  } catch(e) {}
+  
+  const taskMap = geminiConfig.find(c => c.task_type === taskType);
+  const geminiModel = taskMap ? taskMap.model_id : (keys.GEMINI_MODEL || "gemini-3.5-flash");
 
   // 1. GEMINI ENGINE
   if (provider === "gemini") {
     const apiKey = keys.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Gemini API key is missing. Add it in Settings.");
-    const model = keys.GEMINI_MODEL || "gemini-2.5-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    // Auto-switch url depending on model prefix (Google vs Anthropic if misconfigured, though we assume gemini- here)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
     
     const fullPrompt = `${systemPrompt}\n\n${SAFETY_POLICY_PROMPT}\n\nUser Request: ${userPrompt}`;
     const res = await fetch(url, {
@@ -165,13 +174,23 @@ async function safeReq(path, options = {}) {
 }
 
 export const api = {
+  // Stats
+  getStats: async () => {
+    return await safeReq("/stats");
+  },
+  getActivityLog: async () => {
+    return await safeReq("/stats/activity");
+  },
+  submitFeedback: async (payload) => {
+    return await safeReq("/me/feedback", { method: "POST", body: JSON.stringify(payload) });
+  },
+
   // Chat
   getChatHistory: async () => {
     try {
       return await safeReq("/chat");
     } catch (_) {
-      const saved = localStorage.getItem("glitch_chat_history");
-      return saved ? JSON.parse(saved) : { messages: [] };
+      return [];
     }
   },
   sendChat: async (message) => {
@@ -181,7 +200,8 @@ export const api = {
       try {
         const replyText = await dispatchDirectAiCall(
           "You are Glitch AI, an expert marketing & social media automation assistant for Glitch EnterPrice. Respond helpful, concise, and strategically.",
-          message
+          message,
+          "reply_gen"
         );
         return { ok: true, response: replyText, reply: replyText, created_at: new Date().toISOString() };
       } catch (err) {
@@ -193,6 +213,11 @@ export const api = {
         };
       }
     }
+  },
+
+  // Billing
+  initializeCheckout: async () => {
+    return await safeReq("/billing/checkout", { method: "POST" });
   },
 
   // Compose
@@ -209,6 +234,19 @@ export const api = {
         }
       };
     }
+  },
+  updateSettings: async (settings) => {
+    return await safeReq("/me/settings", { method: "PATCH", body: JSON.stringify({ settings }) });
+  },
+  getGeminiConfig: async () => {
+    try {
+      return await safeReq("/gemini-config");
+    } catch (_) {
+      return [];
+    }
+  },
+  updateGeminiConfig: async (payload) => {
+    return await safeReq("/gemini-config", { method: "POST", body: JSON.stringify(payload) });
   },
   generateVariants: async (payload) => {
     try {
@@ -229,7 +267,11 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
   "instagram": { "content": "text", "hashtags": ["tag1"] },
   "facebook_group": { "content": "text", "hashtags": ["tag1"] }
 }`;
-        const aiText = await dispatchDirectAiCall("You write tailored social media posts for Glitch EnterPrice.", prompt);
+        const aiText = await dispatchDirectAiCall(
+          "You write tailored social media posts for Glitch EnterPrice.", 
+          prompt,
+          "caption_gen"
+        );
         const cleanJson = aiText.replace(/```json|```/g, "").trim();
         const parsed = JSON.parse(cleanJson);
 
@@ -258,12 +300,7 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
   },
 
   listPosts: async () => {
-    try {
-      return await safeReq("/compose");
-    } catch (_) {
-      const saved = localStorage.getItem("glitch_saved_posts");
-      return saved ? JSON.parse(saved) : [];
-    }
+    return await safeReq("/compose");
   },
 
   updateVariant: async (id, payload) => {
@@ -292,22 +329,12 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
     }
   },
   getGroupQueue: async () => {
-    try {
-      return await safeReq("/groups/queue");
-    } catch (_) {
-      const saved = localStorage.getItem("glitch_group_queue");
-      return saved ? JSON.parse(saved) : [];
-    }
+    return await safeReq("/groups/queue");
   },
 
   // Files
   listFiles: async (folder) => {
-    try {
-      return await safeReq(`/files${folder ? `?folder=${folder}` : ""}`);
-    } catch (_) {
-      const saved = localStorage.getItem("glitch_vault_files");
-      return saved ? JSON.parse(saved) : [];
-    }
+    return await safeReq(`/files${folder ? `?folder=${folder}` : ""}`);
   },
   deleteFile: async (id) => {
     try {
@@ -357,7 +384,23 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
   },
   getCalendar: async (from, to) => {
     try {
-      return await safeReq(`/schedule/calendar?from=${from || ""}&to=${to || ""}`);
+      const posts = await safeReq(`/schedule/calendar?from=${from || ""}&to=${to || ""}`);
+      const events = [];
+      posts.forEach(p => {
+        if (p.post_variants) {
+          p.post_variants.forEach(v => {
+            events.push({
+              id: v.id, // we use variant ID for the event so forceBroadcast works per-variant
+              post_id: p.id,
+              scheduled_for: p.scheduled_for,
+              platform: v.platform,
+              content: v.content,
+              base_content: p.base_content
+            });
+          });
+        }
+      });
+      return events;
     } catch (_) {
       return [];
     }

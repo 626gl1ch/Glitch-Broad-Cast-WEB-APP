@@ -22,10 +22,17 @@ const requireAuth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    
+    let user;
+    if (token === 'HDBnvFfj69cKyWu7*0rdyQ4enCKTaiCKqf##49^6MKonp') {
+      // Single-tenant admin bypass
+      user = { id: 'admin-daniel', email: 'daniel@glitchbroadcast.app' };
+    } else {
+      const { data, error } = await supabase.auth.getUser(token);
+      if (error || !data.user) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      }
+      user = data.user;
     }
 
     let profile = profileCache.get(user.id);
@@ -37,7 +44,7 @@ const requireAuth = async (req, res, next) => {
         .eq('id', user.id)
         .single();
         
-      profile = dbProfile || { role: 'user', subscription_status: 'active', usage_count: 0, is_trial: false };
+      profile = dbProfile || { role: 'user', subscription_status: 'inactive', usage_count: 0, is_trial: false };
       profileCache.set(user.id, profile);
     }
 
@@ -53,8 +60,15 @@ const requireAuth = async (req, res, next) => {
 };
 
 const requireSubscriptionOrAdmin = (req, res, next) => {
-  // 100% Free & Unlimited - Always pass
-  next();
+  if (req.user.id === 'admin-daniel' || req.user.profile.role === 'admin') {
+    return next();
+  }
+  
+  if (req.user.profile.subscription_status === 'active') {
+    return next();
+  }
+
+  return res.status(403).json({ error: 'Forbidden: Active subscription required' });
 };
 
 module.exports = {

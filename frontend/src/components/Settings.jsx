@@ -53,13 +53,37 @@ export default function Settings() {
   const [newVoiceLabel, setNewVoiceLabel] = useState("");
   const [newVoiceInstructions, setNewVoiceInstructions] = useState("");
 
+  // Gemini Router State
+  const [geminiConfig, setGeminiConfig] = useState([]);
+
   useEffect(() => {
-    try {
-      const keys = JSON.parse(localStorage.getItem("glitch_keys") || "{}");
-      setEnvValues(keys);
-    } catch (err) {
-      setEnvValues({});
-    }
+    const loadSettings = async () => {
+      try {
+        const keys = JSON.parse(localStorage.getItem("glitch_keys") || "{}");
+        setEnvValues(keys);
+      } catch (err) {
+        setEnvValues({});
+      }
+      try {
+        const { api } = await import("../api.js");
+        const res = await api.getMe();
+        if (res.profile && res.profile.settings) {
+          setEnvValues(res.profile.settings);
+          localStorage.setItem("glitch_keys", JSON.stringify(res.profile.settings));
+        }
+        
+        const gc = await api.getGeminiConfig();
+        if (gc && Array.isArray(gc)) {
+          setGeminiConfig(gc);
+          localStorage.setItem("glitch_gemini_config", JSON.stringify(gc));
+        } else {
+          try {
+            setGeminiConfig(JSON.parse(localStorage.getItem("glitch_gemini_config") || "[]"));
+          } catch(e){}
+        }
+      } catch (e) {}
+    };
+    loadSettings();
 
     try {
       const savedVoices = JSON.parse(localStorage.getItem("glitch_brand_voices") || "[]");
@@ -87,14 +111,41 @@ export default function Settings() {
     setEnvValues(prev => ({ ...prev, [envKey]: value }));
   };
 
+  const handleGeminiConfigChange = (taskType, modelId) => {
+    const existing = geminiConfig.find(c => c.task_type === taskType);
+    let updated;
+    if (existing) {
+      updated = geminiConfig.map(c => c.task_type === taskType ? { ...c, model_id: modelId } : c);
+    } else {
+      updated = [...geminiConfig, { task_type: taskType, model_id: modelId }];
+    }
+    setGeminiConfig(updated);
+  };
+
   const saveAllSettings = async () => {
     setIsSavingEnv(true);
     setEnvMessage(null);
     try {
+      const { api } = await import("../api.js");
+      await api.updateSettings(envValues);
+      
+      // Save Gemini Config mapping
+      for (const config of geminiConfig) {
+        if (config.task_type && config.model_id) {
+          await api.updateGeminiConfig(config);
+        }
+      }
+
+      localStorage.setItem("glitch_gemini_config", JSON.stringify(geminiConfig));
       localStorage.setItem("glitch_keys", JSON.stringify(envValues));
       localStorage.setItem("glitch_active_ai", activeAiProvider);
       localStorage.setItem("glitch_brand_voices", JSON.stringify(customVoices));
-      setEnvMessage({ type: "success", text: "Settings, API keys, and voice presets saved successfully!" });
+      if (backendUrl) {
+        localStorage.setItem("backendUrl", backendUrl);
+      } else {
+        localStorage.removeItem("backendUrl");
+      }
+      setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved successfully!" });
       setTimeout(() => setEnvMessage(null), 3500);
     } catch (error) {
       setEnvMessage({ type: "error", text: "Failed to save settings: " + error.message });
@@ -373,6 +424,53 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* ---------------- SECTION 1.5: GEMINI MODEL ROUTER ---------------- */}
+      <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-6">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <Cpu size={22} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white tracking-wide">
+                Gemini Model Router
+              </h2>
+              <p className="text-xs text-muted">Assign specific Gemini models to specific automation tasks for cost/quality optimization.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            { id: "caption_gen", label: "Post Caption / Copy Generation", desc: "Used for rewriting posts per-platform." },
+            { id: "strategy", label: "Deep Strategy / Repurposing", desc: "Used for analyzing top performers & digests." },
+            { id: "reply_gen", label: "Comment Reply Generation", desc: "Used for auto-replying to community comments." },
+            { id: "image_gen", label: "Image Generation / Edits", desc: "Used for generating hero images." }
+          ].map(task => {
+            const currentModel = geminiConfig.find(c => c.task_type === task.id)?.model_id || "";
+            return (
+              <div key={task.id} className="p-4 rounded-2xl bg-[#121215] border border-white/5 flex flex-col justify-between">
+                <div className="mb-3">
+                  <h4 className="text-sm font-bold text-white">{task.label}</h4>
+                  <p className="text-[10px] text-muted">{task.desc}</p>
+                </div>
+                <select
+                  value={currentModel}
+                  onChange={(e) => handleGeminiConfigChange(task.id, e.target.value)}
+                  className="w-full bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent"
+                >
+                  <option value="">Default (Global Model)</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Fast/Cheap)</option>
+                  <option value="gemini-3.1-pro">Gemini 3.1 Pro (Deep Strategy)</option>
+                  <option value="gemini-3-flash">Gemini 3 Flash</option>
+                  <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Cheapest)</option>
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ---------------- SECTION 2: BRAND VOICE PRESETS MANAGER ---------------- */}
       <div className="max-w-6xl mx-auto mb-8 bg-surface rounded-[32px] p-6 md:p-8 border border-white/5 shadow-xl relative z-10 space-y-6">
         <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -571,6 +669,13 @@ export default function Settings() {
             </div>
           </div>
           <div className="space-y-3 pt-2">
+            <input
+              type="text"
+              value={backendUrl}
+              onChange={(e) => setBackendUrl(e.target.value)}
+              placeholder="Backend URL (e.g., http://localhost:8787)"
+              className="w-full bg-[#121215] border border-accent/40 rounded-xl px-4 py-2.5 text-xs font-mono text-white outline-none focus:border-accent"
+            />
             <input
               type="text"
               value={envValues.SUPABASE_URL || ""}

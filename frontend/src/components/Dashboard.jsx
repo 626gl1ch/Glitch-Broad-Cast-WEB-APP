@@ -22,6 +22,8 @@ import {
   BookOpen
 } from "lucide-react";
 
+import { api } from "../api";
+
 // Track real actions in localStorage
 const getStats = () => {
   try {
@@ -72,12 +74,24 @@ export default function Dashboard() {
   const [scheduled, setScheduled] = useState([]);
   const [groupQueue, setGroupQueue] = useState([]);
 
-  const refresh = () => {
-    setStats(getStats());
-    setActivityLog(getActivityLog());
-    setComments(getComments());
-    setScheduled(getScheduled());
-    setGroupQueue(getGroupQueue());
+  const refresh = async () => {
+    try {
+      const newStats = await api.getStats();
+      setStats(newStats);
+    } catch(e) {}
+    try {
+      const newLog = await api.getActivityLog();
+      setActivityLog(newLog || []);
+    } catch(e) {}
+    try {
+      const newScheduled = await api.getCalendar();
+      setScheduled(newScheduled || []);
+    } catch(e) {}
+    try {
+      const newQueue = await api.getGroupQueue();
+      setGroupQueue(newQueue || []);
+    } catch(e) {}
+    setComments(getComments()); // Still local/client-side graph fetch for now
   };
 
   useEffect(() => {
@@ -171,9 +185,9 @@ export default function Dashboard() {
     alert(message);
   };
 
-  const totalPublished = activityLog.filter(a => a.type === "publish").length;
-  const totalScheduled = scheduled.length;
-  const totalGroupQueued = groupQueue.length;
+  const totalPublished = stats.totalPublished || 0;
+  const totalScheduled = stats.totalScheduled || 0;
+  const totalGroupQueued = stats.totalGroupQueued || 0;
   const totalReplies = activityLog.filter(a => a.type === "reply").length;
 
   const connectedPlatforms = (() => {

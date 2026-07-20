@@ -126,20 +126,6 @@ export default function Composer() {
     setVariants((vs) => vs.map((v) => (v.id === id ? { ...v, content } : v)));
   };
 
-  const logActivity = (type, platform, text) => {
-    try {
-      const log = JSON.parse(localStorage.getItem("glitch_activity_log") || "[]");
-      log.unshift({
-        id: `act-${Date.now()}`,
-        type,
-        platform,
-        text,
-        time: new Date().toISOString()
-      });
-      localStorage.setItem("glitch_activity_log", JSON.stringify(log.slice(0, 50)));
-    } catch (e) {}
-  };
-
   const publish = async (variant) => {
     try {
       if (variant.platform === "facebook_group") {
@@ -148,51 +134,27 @@ export default function Composer() {
           return alert("Please select at least 1 Facebook Group target below.");
         }
 
-        const newQueueItems = targetGroups.map(g => ({
-          id: `q-${Date.now()}-${g.id}`,
-          group_url: g.url,
-          group_name: g.name,
-          status: "queued",
-          created_at: new Date().toISOString(),
-          post_variants: {
-            content: variant.content
-          }
-        }));
+        await Promise.all(targetGroups.map(g => 
+          api.queueGroupPost(variant.id, g.url)
+        ));
 
-        const existingQueue = JSON.parse(localStorage.getItem("glitch_group_queue") || "[]");
-        const updatedQueue = [...newQueueItems, ...existingQueue];
-        localStorage.setItem("glitch_group_queue", JSON.stringify(updatedQueue));
-
-        logActivity("publish", "facebook_group", `Queued across ${targetGroups.length} FB Groups: "${variant.content.substring(0,40)}..."`);
         alert(`Successfully queued post across ${targetGroups.length} Facebook Groups! Navigating to Groups tab to execute.`);
         window.dispatchEvent(new CustomEvent('nav-change', { detail: 'groups' }));
       } else {
         await api.publishVariant(variant.id, attachedImage?.url);
-        logActivity("publish", variant.platform, `Published: "${variant.content.substring(0,50)}..."`);
         alert(`Successfully published to ${variant.platform}!`);
       }
     } catch (err) {
-      alert(`Publish status: ${err.message}`);
+      alert(`Publish error: ${err.message}`);
     }
   };
 
   const handleScheduleSubmit = async (variant) => {
     if (!scheduleDate) return alert("Select a date and time first.");
     try {
-      const scheduledItem = {
-        id: `sch-${Date.now()}`,
-        scheduled_for: new Date(scheduleDate).toISOString(),
-        content: variant.content,
-        base_content: baseContent,
-        platform: variant.platform,
-        created_at: new Date().toISOString()
-      };
-
-      const existingScheduled = JSON.parse(localStorage.getItem("glitch_scheduled_posts") || "[]");
-      const updatedScheduled = [scheduledItem, ...existingScheduled];
-      localStorage.setItem("glitch_scheduled_posts", JSON.stringify(updatedScheduled));
-
-      logActivity("schedule", variant.platform, `Scheduled for ${new Date(scheduleDate).toLocaleString()}: "${variant.content.substring(0,40)}..."`);
+      const postId = variant.post_id || variant.id; // fallback if local
+      await api.schedulePost(postId, new Date(scheduleDate).toISOString());
+      
       alert(`Successfully scheduled for ${new Date(scheduleDate).toLocaleString()}!`);
       setSchedulingPostId(null);
       setScheduleDate("");
@@ -378,6 +340,25 @@ export default function Composer() {
                 )}
               </div>
 
+              {/* Inline Generate Button */}
+              <div className="pt-6 border-t border-white/5">
+                <button
+                  onClick={generate}
+                  disabled={generating || !baseContent.trim() || selectedPlatforms.length === 0}
+                  className="w-full h-[60px] rounded-2xl bg-accent text-[#121215] font-bold text-sm shadow-[0_10px_30px_rgba(176,139,255,0.3)] hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {generating ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin" /> Generating Variations...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={20} /> Generate Multi-Platform Content
+                    </>
+                  )}
+                </button>
+              </div>
+
             </div>
           </div>
 
@@ -496,26 +477,6 @@ export default function Composer() {
         </div>
 
       </div>
-
-      {/* Docked Generate Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#121215] to-transparent pointer-events-none flex justify-center z-40">
-        <button
-          onClick={generate}
-          disabled={generating || !baseContent.trim() || selectedPlatforms.length === 0}
-          className="pointer-events-auto w-full max-w-md h-[68px] rounded-full bg-accent text-[#121215] font-bold text-base shadow-[0_10px_30px_rgba(176,139,255,0.4)] hover:scale-105 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3 cursor-pointer"
-        >
-          {generating ? (
-            <>
-              <RefreshCw size={22} className="animate-spin" /> Generating Variations...
-            </>
-          ) : (
-            <>
-              <Sparkles size={22} /> Generate Multi-Platform Content
-            </>
-          )}
-        </button>
-      </div>
-
     </div>
   );
 }

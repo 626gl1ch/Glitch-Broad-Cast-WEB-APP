@@ -1,39 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { Sparkles, ArrowRight } from 'lucide-react';
-
-let supabaseSingleton = null;
-
-const getSupabaseClient = () => {
-  if (supabaseSingleton) return supabaseSingleton;
-  let keys = {};
-  try {
-    keys = JSON.parse(localStorage.getItem("glitch_keys") || "{}");
-  } catch (e) {
-    keys = {};
-  }
-  const url = keys.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '';
-  const key = keys.SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-  if (url && key && !key.includes('dummy')) {
-    try {
-      supabaseSingleton = createClient(url, key);
-      return supabaseSingleton;
-    } catch (e) {
-      return null;
-    }
-  }
-  return null;
-};
+import React, { useState, useEffect } from 'react';
+import { Lock, ArrowRight, User, Mail, CreditCard, Key } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+import { api } from '../api';
 
 export default function AuthModal({ session, setSession }) {
+  const [activeTab, setActiveTab] = useState('login'); // 'login', 'signup', 'admin'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem("glitch_guest_active") === "true");
-
-  const supabase = useMemo(() => getSupabaseClient(), []);
+  const [error, setError] = useState('');
 
   // Check for stored session
   useEffect(() => {
@@ -46,141 +21,186 @@ export default function AuthModal({ session, setSession }) {
     }
   }, [setSession]);
 
-  useEffect(() => {
-    if (!supabase) return;
+  if (session) return null;
 
-    supabase.auth.getSession().then(({ data: { session: remoteSession } }) => {
-      if (remoteSession) {
-        setSession(remoteSession);
-        localStorage.setItem("supabase_jwt", remoteSession.access_token);
-      }
-    }).catch(() => {});
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, remoteSession) => {
-      if (remoteSession) {
-        setSession(remoteSession);
-        localStorage.setItem("supabase_jwt", remoteSession.access_token);
-      }
-    });
-
-    return () => subscription?.unsubscribe();
-  }, [supabase, setSession]);
-
-  // If authenticated or dismissed, don't show modal
-  if (session || dismissed) return null;
-
-  const createLocalSession = (userEmail) => {
-    const localUser = {
-      user: {
-        id: "usr_" + Math.random().toString(36).substring(2, 9),
-        email: userEmail.trim() || "operator@glitchbroadcast.app",
-      },
-      access_token: "local_auth_jwt_" + Date.now(),
-      is_local: true
-    };
-    localStorage.setItem("glitch_user_session", JSON.stringify(localUser));
-    localStorage.setItem("supabase_jwt", localUser.access_token);
-    setSession(localUser);
-  };
-
-  const handleAuth = (e) => {
+  const handleAdminBypass = (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
 
-    const userEmail = email.trim();
-    if (!userEmail) {
-      setLoading(false);
-      return;
+    if (password === 'HDBnvFfj69cKyWu7*0rdyQ4enCKTaiCKqf##49^6MKonp') {
+      const localUser = {
+        user: {
+          id: "admin-daniel",
+          email: "daniel@glitchbroadcast.app",
+        },
+        access_token: password, // backend expects this to bypass
+        is_local: true
+      };
+      localStorage.setItem("glitch_user_session", JSON.stringify(localUser));
+      localStorage.setItem("supabase_jwt", localUser.access_token);
+      setSession(localUser);
+    } else {
+      setError('Incorrect master password.');
     }
-
-    // Instantly log user into local session engine (prevents stuck loading or 401 delays)
-    createLocalSession(userEmail);
     setLoading(false);
   };
 
-  const handleGuestAccess = () => {
-    localStorage.setItem("glitch_guest_active", "true");
-    createLocalSession("guest@glitchbroadcast.app");
-    setDismissed(true);
+  const checkSubscription = async (token, user) => {
+    try {
+      localStorage.setItem("supabase_jwt", token); // temp store to allow api call
+      const me = await api.getMe();
+      if (me.profile && me.profile.subscription_status === 'active') {
+        const authUser = { user, access_token: token };
+        localStorage.setItem("glitch_user_session", JSON.stringify(authUser));
+        setSession(authUser);
+      } else {
+        // Init Checkout
+        const checkout = await api.initializeCheckout();
+        if (checkout && checkout.authorization_url) {
+          window.location.href = checkout.authorization_url;
+        } else {
+          setError('Please complete payment to access the app.');
+        }
+      }
+    } catch (err) {
+      setError(err.message || "Failed to verify subscription.");
+    }
+  };
+
+  const handleSupabaseAuth = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      if (activeTab === 'signup') {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        
+        if (data.session) {
+          await checkSubscription(data.session.access_token, data.user);
+        } else {
+          setError('Check your email to verify your account.');
+        }
+      } else if (activeTab === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        
+        await checkSubscription(data.session.access_token, data.user);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
       <div className="bg-[#101014] border border-white/10 p-8 rounded-[32px] max-w-md w-full shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-accent-gradient" />
         
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <span className="text-[10px] font-mono uppercase tracking-widest text-accent flex items-center gap-1.5 font-bold">
-            <Sparkles size={12} /> Command Center Access
-          </span>
-          <span className="text-[9px] font-mono text-signal bg-signal/10 px-2.5 py-0.5 rounded-full border border-signal/20 font-bold">
-            100% Free Mode
+            <Lock size={12} /> Restricted Access
           </span>
         </div>
 
-        <h2 className="text-2xl font-bold font-display text-white mb-1 tracking-tight">
-          {isLogin ? 'Sign In to Command Center' : 'Create Free Account'}
+        <h2 className="text-2xl font-bold font-display text-white mb-2 tracking-tight">
+          Glitch Broadcast
         </h2>
         <p className="text-xs text-muted mb-6 leading-relaxed">
-          Manage Facebook Pages, Instagram, LinkedIn, and Facebook Groups automatically with Gemini AI.
+          {activeTab === 'admin' 
+            ? "Enter the master access password to initialize the Command Center."
+            : "Sign in or create an account to access the platform. Access fee is $10."}
         </p>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 p-1 bg-[#161722] rounded-xl border border-white/5">
+          <button 
+            onClick={() => { setActiveTab('login'); setError(''); }}
+            className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'login' ? 'bg-surface border border-white/10 text-white shadow-md' : 'text-muted hover:text-white/80'}`}
+          >
+            Login
+          </button>
+          <button 
+            onClick={() => { setActiveTab('signup'); setError(''); }}
+            className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'signup' ? 'bg-surface border border-white/10 text-white shadow-md' : 'text-muted hover:text-white/80'}`}
+          >
+            Sign Up
+          </button>
+          <button 
+            onClick={() => { setActiveTab('admin'); setError(''); }}
+            className={`flex-1 py-2 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'admin' ? 'bg-accent/20 border border-accent/30 text-accent shadow-md' : 'text-muted hover:text-accent/80'}`}
+          >
+            Admin
+          </button>
+        </div>
+
+        <form onSubmit={activeTab === 'admin' ? handleAdminBypass : handleSupabaseAuth} className="space-y-4">
+          
+          {activeTab !== 'admin' && (
+            <div>
+              <label className="block text-[11px] font-mono text-muted uppercase mb-1.5 ml-1">Email Address</label>
+              <div className="relative">
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="hello@example.com"
+                  className="w-full bg-[#161722] border border-white/5 text-white rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-accent/50 transition-colors shadow-inner"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
           <div>
-            <label className="block text-[11px] font-mono text-muted uppercase mb-1.5 ml-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. daniellancce1@gmail.com"
-              className="w-full bg-[#161722] border border-white/5 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-accent/50 transition-colors shadow-inner font-sans"
-              required
-            />
+            <label className="block text-[11px] font-mono text-muted uppercase mb-1.5 ml-1">
+              {activeTab === 'admin' ? 'Master Password' : 'Password'}
+            </label>
+            <div className="relative">
+              <Key size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-[#161722] border border-white/5 text-white rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-accent/50 transition-colors shadow-inner font-sans"
+                required
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-[11px] font-mono text-muted uppercase mb-1.5 ml-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
-              className="w-full bg-[#161722] border border-white/5 text-white rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-accent/50 transition-colors shadow-inner font-sans"
-              required
-            />
-          </div>
+
+          {error && <p className="text-alert text-xs ml-1 bg-alert/10 border border-alert/20 p-2 rounded-xl">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent hover:bg-accent/90 text-[#121215] font-bold py-3.5 px-4 rounded-2xl transition-all shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-2"
+            className={`w-full font-bold py-3.5 px-4 rounded-2xl transition-all shadow-lg hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-2 ${
+              activeTab === 'admin' 
+                ? 'bg-accent text-[#121215]' 
+                : 'bg-white text-black'
+            }`}
           >
             {loading ? (
-              <span>Logging into Session...</span>
+              <span>Processing...</span>
             ) : (
               <>
-                <span>{isLogin ? 'Enter Command Center' : 'Create Account & Proceed'}</span>
-                <ArrowRight size={16} />
+                <span>{activeTab === 'admin' ? 'Unlock System' : (activeTab === 'signup' ? 'Pay $10 & Create Account' : 'Login')}</span>
+                {activeTab === 'admin' ? <ArrowRight size={16} /> : <CreditCard size={16} />}
               </>
             )}
           </button>
+          
+          {activeTab !== 'admin' && (
+            <p className="text-center text-[10px] text-muted pt-2">
+              By continuing, you agree to our Terms of Service. Secure payments via Paystack.
+            </p>
+          )}
         </form>
-
-        <div className="mt-6 pt-5 border-t border-white/5 flex items-center justify-between text-xs">
-          <button
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-muted hover:text-white transition-colors text-xs font-medium cursor-pointer"
-          >
-            {isLogin ? "Need an account? Sign up" : 'Already registered? Sign in'}
-          </button>
-
-          <button
-            onClick={handleGuestAccess}
-            className="text-accent font-bold hover:underline text-xs flex items-center gap-1 cursor-pointer"
-          >
-            <span>Continue as Guest</span>
-            <ArrowRight size={12} />
-          </button>
-        </div>
       </div>
     </div>
   );
