@@ -5,12 +5,34 @@ const { requireAuth, supabase } = require('../middleware/auth');
 // Get current Gemini configuration
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('gemini_config')
       .select('*')
       .eq('user_id', req.user.id);
       
     if (error) throw error;
+    
+    // Fallback to admin configs if the user has no config
+    if (!data || data.length === 0) {
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1);
+
+      if (admins && admins.length > 0) {
+        const { data: adminData } = await supabase
+          .from('gemini_config')
+          .select('*')
+          .eq('user_id', admins[0].id);
+          
+        if (adminData && adminData.length > 0) {
+          // Send the admin data but map the IDs out to prevent the user from editing the admin's exact rows
+          data = adminData.map(c => ({ ...c, id: undefined, user_id: req.user.id }));
+        }
+      }
+    }
+    
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

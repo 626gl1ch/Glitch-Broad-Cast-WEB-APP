@@ -2,8 +2,33 @@ const express = require("express");
 const router = express.Router();
 const { supabase, requireAuth } = require("../middleware/auth");
 
-router.get("/", requireAuth, (req, res) => {
-  res.json({ profile: req.user.profile });
+router.get("/", requireAuth, async (req, res) => {
+  try {
+    // 1. Fetch Admin Settings as global fallback
+    const { data: admins } = await supabase
+      .from("profiles")
+      .select("settings")
+      .eq("role", "admin")
+      .limit(1);
+
+    const globalSettings = (admins && admins.length > 0) ? (admins[0].settings || {}) : {};
+    
+    // 2. Get User Settings
+    const userSettings = req.user.profile.settings || {};
+
+    // 3. Merge: If user's key is empty, use global
+    const mergedSettings = { ...globalSettings };
+    for (const key in userSettings) {
+      if (userSettings[key] && userSettings[key].trim() !== "") {
+        mergedSettings[key] = userSettings[key];
+      }
+    }
+
+    const mergedProfile = { ...req.user.profile, settings: mergedSettings };
+    res.json({ profile: mergedProfile });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.patch("/settings", requireAuth, async (req, res) => {

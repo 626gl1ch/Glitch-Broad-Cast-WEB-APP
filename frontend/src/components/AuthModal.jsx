@@ -53,6 +53,9 @@ export default function AuthModal({ session, setSession }) {
       if (me.profile && me.profile.subscription_status === 'active') {
         const authUser = { user, access_token: token };
         localStorage.setItem("glitch_user_session", JSON.stringify(authUser));
+        if (me.profile.settings) {
+          localStorage.setItem("glitch_keys", JSON.stringify(me.profile.settings));
+        }
         setSession(authUser);
       } else {
         // Init Checkout
