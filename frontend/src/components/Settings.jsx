@@ -126,26 +126,47 @@ export default function Settings() {
     setIsSavingEnv(true);
     setEnvMessage(null);
     try {
-      const { api } = await import("../api.js");
-      await api.updateSettings(envValues);
-      
-      // Save Gemini Config mapping
-      for (const config of geminiConfig) {
-        if (config.task_type && config.model_id) {
-          await api.updateGeminiConfig(config);
-        }
-      }
-
+      // 1. Always save to LocalStorage first so the app works immediately on device
       localStorage.setItem("glitch_gemini_config", JSON.stringify(geminiConfig));
       localStorage.setItem("glitch_keys", JSON.stringify(envValues));
       localStorage.setItem("glitch_active_ai", activeAiProvider);
       localStorage.setItem("glitch_brand_voices", JSON.stringify(customVoices));
-      if (backendUrl) {
-        localStorage.setItem("backendUrl", backendUrl);
+      
+      let formattedBackendUrl = backendUrl ? backendUrl.trim() : "";
+      if (formattedBackendUrl) {
+        if (!formattedBackendUrl.startsWith("http://") && !formattedBackendUrl.startsWith("https://")) {
+          formattedBackendUrl = "http://" + formattedBackendUrl;
+        }
+        localStorage.setItem("backendUrl", formattedBackendUrl);
+        setBackendUrl(formattedBackendUrl);
       } else {
         localStorage.removeItem("backendUrl");
       }
-      setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved successfully!" });
+
+      // 2. Attempt Backend Sync if API is accessible
+      let backendSynced = false;
+      try {
+        const { api } = await import("../api.js");
+        const settingsRes = await api.updateSettings(envValues);
+        if (settingsRes && settingsRes.ok !== false && !settingsRes.localOnly) {
+          backendSynced = true;
+        }
+
+        // Save Gemini Config mapping
+        for (const config of geminiConfig) {
+          if (config.task_type && config.model_id) {
+            await api.updateGeminiConfig(config);
+          }
+        }
+      } catch (e) {
+        // Backend sync failed or offline; local storage is already updated
+      }
+
+      if (backendSynced) {
+        setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved locally & synced to backend database!" });
+      } else {
+        setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved locally on device!" });
+      }
       setTimeout(() => setEnvMessage(null), 3500);
     } catch (error) {
       setEnvMessage({ type: "error", text: "Failed to save settings: " + error.message });

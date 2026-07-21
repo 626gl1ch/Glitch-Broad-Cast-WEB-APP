@@ -2,7 +2,13 @@ import { showInterstitialAd } from "./utils/admob";
 
 const getBaseUrl = () => {
   const custom = localStorage.getItem("backendUrl");
-  if (custom && custom.startsWith("http")) return custom;
+  if (custom && custom.trim() !== "") {
+    let formatted = custom.trim();
+    if (!formatted.startsWith("http://") && !formatted.startsWith("https://")) {
+      formatted = "http://" + formatted;
+    }
+    return formatted;
+  }
   if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.startsWith("http")) {
     return import.meta.env.VITE_API_URL;
   }
@@ -236,7 +242,11 @@ export const api = {
     }
   },
   updateSettings: async (settings) => {
-    return await safeReq("/me/settings", { method: "PATCH", body: JSON.stringify({ settings }) });
+    try {
+      return await safeReq("/me/settings", { method: "PATCH", body: JSON.stringify({ settings }) });
+    } catch (e) {
+      return { ok: false, error: e.message, localOnly: true };
+    }
   },
   getGeminiConfig: async () => {
     try {
@@ -246,7 +256,11 @@ export const api = {
     }
   },
   updateGeminiConfig: async (payload) => {
-    return await safeReq("/gemini-config", { method: "POST", body: JSON.stringify(payload) });
+    try {
+      return await safeReq("/gemini-config", { method: "POST", body: JSON.stringify(payload) });
+    } catch (e) {
+      return { ok: false, error: e.message, localOnly: true };
+    }
   },
   generateVariants: async (payload) => {
     try {
