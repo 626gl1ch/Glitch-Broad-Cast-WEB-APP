@@ -16,14 +16,14 @@ async function postToFacebookPage(req, { message, imageUrl }) {
       url: imageUrl,
       caption: message,
       access_token: token,
-    });
+    }, { timeout: 15000 });
     return { platform_post_id: data.post_id || data.id };
   }
 
   const { data } = await axios.post(`${GRAPH}/${pageId}/feed`, {
     message,
     access_token: token,
-  });
+  }, { timeout: 15000 });
   return { platform_post_id: data.id };
 }
 
@@ -41,14 +41,14 @@ async function postToInstagram(req, { caption, imageUrl, locationId }) {
     caption,
     location_id: locationId || undefined,
     access_token: token,
-  });
+  }, { timeout: 15000 });
 
   const creationId = containerRes.data.id;
 
   const publishRes = await axios.post(`${GRAPH}/${igUserId}/media_publish`, {
     creation_id: creationId,
     access_token: token,
-  });
+  }, { timeout: 15000 });
 
   return { platform_post_id: publishRes.data.id };
 }
@@ -60,6 +60,7 @@ async function searchInstagramLocation(req, query) {
   const token = req.headers['x-meta-page-token'] || process.env.META_PAGE_ACCESS_TOKEN;
   const { data } = await axios.get(`${GRAPH}/search`, {
     params: { type: "place", q: query, access_token: token },
+    timeout: 15000
   });
   return data.data || [];
 }

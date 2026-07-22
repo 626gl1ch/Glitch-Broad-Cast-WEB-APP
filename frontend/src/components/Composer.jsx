@@ -126,12 +126,18 @@ export default function Composer() {
     setVariants((vs) => vs.map((v) => (v.id === id ? { ...v, content } : v)));
   };
 
+  const [publishingIds, setPublishingIds] = useState({});
+
   const publish = async (variant) => {
+    if (publishingIds[variant.id]) return;
+    setPublishingIds(prev => ({ ...prev, [variant.id]: true }));
     try {
       if (variant.platform === "facebook_group") {
         const targetGroups = storedGroups.filter(g => selectedGroupIds.includes(g.id));
         if (targetGroups.length === 0) {
-          return alert("Please select at least 1 Facebook Group target below.");
+          alert("Please select at least 1 Facebook Group target below.");
+          setPublishingIds(prev => ({ ...prev, [variant.id]: false }));
+          return;
         }
 
         await Promise.all(targetGroups.map(g => 
@@ -146,6 +152,8 @@ export default function Composer() {
       }
     } catch (err) {
       alert(`Publish error: ${err.message}`);
+    } finally {
+      setPublishingIds(prev => ({ ...prev, [variant.id]: false }));
     }
   };
 
@@ -445,9 +453,14 @@ export default function Composer() {
 
                         <button
                           onClick={() => publish(v)}
-                          className="flex items-center gap-2 text-xs font-bold text-white bg-white/10 hover:bg-white/20 px-5 py-3 rounded-full transition-all cursor-pointer"
+                          disabled={publishingIds[v.id]}
+                          className="flex items-center gap-2 text-xs font-bold text-white bg-white/10 hover:bg-white/20 px-5 py-3 rounded-full transition-all cursor-pointer disabled:opacity-50"
                         >
-                          {v.platform === "facebook_group" ? (
+                          {publishingIds[v.id] ? (
+                            <>
+                              <RefreshCw size={16} className="animate-spin" /> Publishing...
+                            </>
+                          ) : v.platform === "facebook_group" ? (
                             <>
                               <Plus size={16} /> Queue Selected Groups ({selectedGroupIds.length})
                             </>

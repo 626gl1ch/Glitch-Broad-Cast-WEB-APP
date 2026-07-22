@@ -65,6 +65,9 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           .update({ subscription_status: 'active' })
           .eq('id', user_id);
 
+        const { clearProfileCache } = require('../middleware/auth');
+        clearProfileCache(user_id);
+
         // Record Subscription
         const expires_at = new Date();
         expires_at.setMonth(expires_at.getMonth() + 1); // 1 month

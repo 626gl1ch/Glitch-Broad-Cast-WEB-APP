@@ -139,10 +139,10 @@ export default function ContentVault() {
         </div>
 
         {/* Upload Button */}
-        <label className="flex items-center gap-2 bg-gradient-to-r from-[#43FFB0]/20 to-[#8B7CFF]/20 hover:from-[#43FFB0]/30 hover:to-[#8B7CFF]/30 border border-[#43FFB0]/30 text-white font-medium text-xs px-5 py-3 rounded-xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0">
+        <label className={`flex items-center gap-2 bg-gradient-to-r from-[#43FFB0]/20 to-[#8B7CFF]/20 hover:from-[#43FFB0]/30 hover:to-[#8B7CFF]/30 border border-[#43FFB0]/30 text-white font-medium text-xs px-5 py-3 rounded-xl transition-all shrink-0 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]'}`}>
           <Upload size={14} className="text-[#43FFB0]" />
           <span>{uploading ? "Uploading..." : "Upload New File"}</span>
-          <input type="file" className="hidden" onChange={handleUpload} accept="image/*,application/pdf" />
+          <input type="file" className="hidden" onChange={handleUpload} accept="image/*,application/pdf" disabled={uploading} />
         </label>
       </div>
 

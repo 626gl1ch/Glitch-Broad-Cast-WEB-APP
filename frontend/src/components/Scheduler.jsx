@@ -53,7 +53,11 @@ export default function Scheduler() {
     setSelectedEvent(null);
   };
 
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+
   const forceBroadcast = async (event) => {
+    if (isBroadcasting) return;
+    setIsBroadcasting(true);
     try {
       await api.publishVariant(event.id);
       
@@ -61,6 +65,8 @@ export default function Scheduler() {
       deleteSchedule(event.id, event.post_id);
     } catch (err) {
       alert(`Broadcast error: ${err.message}`);
+    } finally {
+      setIsBroadcasting(false);
     }
   };
 
@@ -222,9 +228,10 @@ export default function Scheduler() {
               </button>
               <button
                 onClick={() => forceBroadcast(selectedEvent)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 text-xs font-bold text-[#121215] bg-accent px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+                disabled={isBroadcasting}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 text-xs font-bold text-[#121215] bg-accent px-6 py-3.5 rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer disabled:opacity-50"
               >
-                <Send size={16} /> Force Broadcast Now
+                {isBroadcasting ? "Broadcasting..." : <><Send size={16} /> Force Broadcast Now</>}
               </button>
             </div>
 

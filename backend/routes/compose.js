@@ -36,10 +36,16 @@ router.post("/generate", requireAuth, requireSubscriptionOrAdmin, async (req, re
     if (varErr) throw varErr;
 
     // Increment usage count
-    await supabase.rpc('increment_usage', { user_id: userId }).catch(() => {
-       // fallback if RPC doesn't exist
-       supabase.from('profiles').update({ usage_count: req.user.profile.usage_count + 1 }).eq('id', userId).then();
-    });
+    try {
+      await supabase.rpc('increment_usage', { user_id: userId });
+    } catch (err) {
+      // fallback if RPC doesn't exist
+      try {
+        await supabase.from('profiles').update({ usage_count: req.user.profile.usage_count + 1 }).eq('id', userId);
+      } catch (fallbackErr) {
+        // Ignore fallback errors for stats
+      }
+    }
 
     res.json({ post, variants: savedVariants });
   } catch (err) {

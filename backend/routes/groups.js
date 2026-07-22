@@ -51,64 +51,72 @@ router.post("/queue/:id/run", requireAuth, async (req, res) => {
   const { id } = req.params;
   const { imagePath } = req.body;
 
-  const { data: item, error } = await supabase
-    .from("assisted_posting_queue")
-    .select("*, post_variants(*)")
-    .eq("id", id)
-    .eq("user_id", req.user.id)
-    .single();
-  if (error || !item) return res.status(404).json({ error: "Queue item not found" });
+  try {
+    const { data: item, error } = await supabase
+      .from("assisted_posting_queue")
+      .select("*, post_variants(*)")
+      .eq("id", id)
+      .eq("user_id", req.user.id)
+      .single();
+    if (error || !item) return res.status(404).json({ error: "Queue item not found" });
 
-  await supabase
-    .from("assisted_posting_queue")
-    .update({ status: "in_progress", updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", req.user.id);
+    await supabase
+      .from("assisted_posting_queue")
+      .update({ status: "in_progress", updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", req.user.id);
 
-  const variant = item.post_variants;
-  const fullText = [variant.content, (variant.hashtags || []).join(" ")]
-    .filter(Boolean)
-    .join("\n\n");
+    const variant = item.post_variants;
+    const fullText = [variant.content, (variant.hashtags || []).join(" ")]
+      .filter(Boolean)
+      .join("\n\n");
 
-  const result = await assistedPostToGroup({
-    groupUrl: item.group_url,
-    content: fullText,
-    imagePath,
-  });
+    const result = await assistedPostToGroup({
+      groupUrl: item.group_url,
+      content: fullText,
+      imagePath,
+    });
 
-  await supabase
-    .from("assisted_posting_queue")
-    .update({
-      status: result.status,
-      log: result.log,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("user_id", req.user.id);
+    await supabase
+      .from("assisted_posting_queue")
+      .update({
+        status: result.status,
+        log: result.log,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("user_id", req.user.id);
 
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Mark an item as done once you've clicked Post in the browser yourself
 // Mark an item as done once you've clicked Post in the browser yourself
 router.post("/queue/:id/confirm", requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { data, error } = await supabase
-    .from("assisted_posting_queue")
-    .update({ status: "done", updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", req.user.id)
-    .select()
-    .single();
-  if (error) return res.status(500).json({ error: error.message });
+  try {
+    const { data, error } = await supabase
+      .from("assisted_posting_queue")
+      .update({ status: "done", updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", req.user.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
 
-  await supabase
-    .from("post_variants")
-    .update({ publish_status: "posted", posted_at: new Date().toISOString() })
-    .eq("id", data.post_variant_id)
-    .eq("user_id", req.user.id);
+    await supabase
+      .from("post_variants")
+      .update({ publish_status: "posted", posted_at: new Date().toISOString() })
+      .eq("id", data.post_variant_id)
+      .eq("user_id", req.user.id);
 
-  res.json(data);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

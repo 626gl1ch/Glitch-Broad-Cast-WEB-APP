@@ -5,14 +5,18 @@ const { supabase, requireAuth } = require("../middleware/auth");
 
 // GET last 50 messages
 router.get("/", requireAuth, async (req, res) => {
-  const { data, error } = await supabase
-    .from("chat_messages")
-    .select("*")
-    .eq("user_id", req.user.id)
-    .order("created_at", { ascending: true })
-    .limit(50);
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  try {
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .eq("user_id", req.user.id)
+      .order("created_at", { ascending: true })
+      .limit(50);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST a new message, get the assistant's reply

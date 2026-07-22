@@ -39,6 +39,7 @@ async function postToLinkedIn(req, { text, imageAssetUrn }) {
       "Content-Type": "application/json",
       "X-Restli-Protocol-Version": "2.0.0",
     },
+    timeout: 15000,
   });
 
   return { platform_post_id: data.id };

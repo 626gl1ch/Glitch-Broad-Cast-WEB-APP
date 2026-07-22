@@ -5,13 +5,17 @@ const gemini = require("../services/gemini");
 
 // List content vault items, optionally filtered by folder
 router.get("/", requireAuth, async (req, res) => {
-  const { folder } = req.query;
-  let query = supabase.from("content_items").select("*").eq("user_id", req.user.id).order("created_at", { ascending: false });
-  if (folder) query = query.eq("folder", folder);
+  try {
+    const { folder } = req.query;
+    let query = supabase.from("content_items").select("*").eq("user_id", req.user.id).order("created_at", { ascending: false });
+    if (folder) query = query.eq("folder", folder);
 
-  const { data, error } = await query;
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Upload a file to Supabase Storage and register it in content_items
@@ -67,9 +71,13 @@ router.post("/upload", requireAuth, async (req, res) => {
 });
 
 router.delete("/:id", requireAuth, async (req, res) => {
-  const { error } = await supabase.from("content_items").delete().eq("id", req.params.id).eq("user_id", req.user.id);
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ success: true });
+  try {
+    const { error } = await supabase.from("content_items").delete().eq("id", req.params.id).eq("user_id", req.user.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

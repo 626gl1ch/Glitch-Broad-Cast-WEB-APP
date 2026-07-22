@@ -182,13 +182,19 @@ async function safeReq(path, options = {}) {
 export const api = {
   // Stats
   getStats: async () => {
-    return await safeReq("/stats");
+    try {
+      return await safeReq("/stats");
+    } catch (e) { return {}; }
   },
   getActivityLog: async () => {
-    return await safeReq("/stats/activity");
+    try {
+      return await safeReq("/stats/activity");
+    } catch (e) { return []; }
   },
   submitFeedback: async (payload) => {
-    return await safeReq("/me/feedback", { method: "POST", body: JSON.stringify(payload) });
+    try {
+      return await safeReq("/me/feedback", { method: "POST", body: JSON.stringify(payload) });
+    } catch (e) { return { ok: false, error: e.message }; }
   },
 
   // Chat
@@ -223,7 +229,9 @@ export const api = {
 
   // Billing
   initializeCheckout: async () => {
-    return await safeReq("/billing/checkout", { method: "POST" });
+    try {
+      return await safeReq("/billing/checkout", { method: "POST" });
+    } catch (e) { return { ok: false, error: e.message }; }
   },
 
   // Compose
@@ -314,7 +322,9 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
   },
 
   listPosts: async () => {
-    return await safeReq("/compose");
+    try {
+      return await safeReq("/compose");
+    } catch (e) { return []; }
   },
 
   updateVariant: async (id, payload) => {
@@ -343,12 +353,16 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
     }
   },
   getGroupQueue: async () => {
-    return await safeReq("/groups/queue");
+    try {
+      return await safeReq("/groups/queue");
+    } catch (e) { return []; }
   },
 
   // Files
   listFiles: async (folder) => {
-    return await safeReq(`/files${folder ? `?folder=${folder}` : ""}`);
+    try {
+      return await safeReq(`/files${folder ? `?folder=${folder}` : ""}`);
+    } catch (e) { return []; }
   },
   deleteFile: async (id) => {
     try {

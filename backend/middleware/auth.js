@@ -71,9 +71,15 @@ const requireSubscriptionOrAdmin = (req, res, next) => {
   return res.status(403).json({ error: 'Forbidden: Active subscription required' });
 };
 
+const clearProfileCache = (userId) => {
+  if (userId) profileCache.delete(userId);
+  else profileCache.clear();
+};
+
 module.exports = {
   requireAuth,
   requireSubscriptionOrAdmin,
   TRIAL_DAYS,
-  supabase
+  supabase,
+  clearProfileCache
 };
