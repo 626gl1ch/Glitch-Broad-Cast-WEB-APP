@@ -33,16 +33,24 @@ async function postToLinkedIn(req, { text, imageAssetUrn }) {
     },
   };
 
-  const { data } = await axios.post(`${API}/ugcPosts`, body, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "X-Restli-Protocol-Version": "2.0.0",
-    },
-    timeout: 15000,
-  });
+  if (!token || !authorUrn) {
+    throw new Error("Missing LinkedIn Access Token or Person URN.");
+  }
 
-  return { platform_post_id: data.id };
+  try {
+    const { data } = await axios.post(`${API}/ugcPosts`, body, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+      timeout: 15000,
+    });
+    return { platform_post_id: data.id };
+  } catch (err) {
+    const linkedinError = err.response?.data?.message || err.message;
+    throw new Error(`LinkedIn API Error: ${linkedinError}`);
+  }
 }
 
 module.exports = { postToLinkedIn };

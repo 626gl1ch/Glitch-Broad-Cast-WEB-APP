@@ -96,7 +96,11 @@ ${requested}
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
   const clean = text.replace(/```json|```/g, "").trim();
-  return JSON.parse(clean);
+  try {
+    return JSON.parse(clean);
+  } catch (err) {
+    throw new Error("Gemini AI failed to generate valid structured data. Please try again or simplify the prompt.");
+  }
 }
 
 /**

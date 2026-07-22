@@ -22,6 +22,16 @@ function startScheduler() {
     if (error || !duePosts?.length) return;
 
     for (const post of duePosts) {
+      // Optimistic lock to prevent double-posting in overlapping cron runs
+      const { data: lockCheck } = await supabase
+        .from("posts")
+        .update({ status: "processing" })
+        .eq("id", post.id)
+        .eq("status", "scheduled")
+        .select();
+
+      if (!lockCheck || lockCheck.length === 0) continue;
+
       for (const variant of post.post_variants) {
         if (variant.platform === "facebook_group") continue;
         if (variant.publish_status !== "pending") continue;
@@ -32,12 +42,14 @@ function startScheduler() {
             .join("\n\n");
 
           let result;
+          const mockReq = { headers: {} }; // Fallback to process.env keys for background scheduler
+
           if (variant.platform === "facebook_page") {
-            result = await meta.postToFacebookPage({ message: fullText });
+            result = await meta.postToFacebookPage(mockReq, { message: fullText });
           } else if (variant.platform === "instagram") {
-            result = await meta.postToInstagram({ caption: fullText });
+            result = await meta.postToInstagram(mockReq, { caption: fullText });
           } else if (variant.platform === "linkedin") {
-            result = await linkedin.postToLinkedIn({ text: fullText });
+            result = await linkedin.postToLinkedIn(mockReq, { text: fullText });
           }
 
           await supabase

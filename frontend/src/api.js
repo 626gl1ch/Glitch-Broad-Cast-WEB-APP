@@ -411,26 +411,22 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
     }
   },
   getCalendar: async (from, to) => {
-    try {
-      const posts = await safeReq(`/schedule/calendar?from=${from || ""}&to=${to || ""}`);
-      const events = [];
-      posts.forEach(p => {
-        if (p.post_variants) {
-          p.post_variants.forEach(v => {
-            events.push({
-              id: v.id, // we use variant ID for the event so forceBroadcast works per-variant
-              post_id: p.id,
-              scheduled_for: p.scheduled_for,
-              platform: v.platform,
-              content: v.content,
-              base_content: p.base_content
-            });
+    const posts = await safeReq(`/schedule/calendar?from=${from || ""}&to=${to || ""}`);
+    const events = [];
+    posts.forEach(p => {
+      if (p.post_variants) {
+        p.post_variants.forEach(v => {
+          events.push({
+            id: v.id, // we use variant ID for the event so forceBroadcast works per-variant
+            post_id: p.id,
+            scheduled_for: p.scheduled_for,
+            platform: v.platform,
+            content: v.content,
+            base_content: p.base_content
           });
-        }
-      });
-      return events;
-    } catch (_) {
-      return [];
-    }
+        });
+      }
+    });
+    return events;
   }
 };

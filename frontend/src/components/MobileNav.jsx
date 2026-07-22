@@ -54,6 +54,17 @@ export default function MobileNav({ active, onChange }) {
                 </button>
               );
             })}
+            <div className="pt-2 mt-2 border-t border-white/5">
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.reload();
+                }}
+                className="w-full flex items-center justify-center gap-4 px-5 py-4 rounded-3xl text-sm font-bold text-alert bg-alert/5 hover:bg-alert/10 transition-colors uppercase tracking-widest cursor-pointer"
+              >
+                System Reset (Logout)
+              </button>
+            </div>
           </div>
         </div>
       )}

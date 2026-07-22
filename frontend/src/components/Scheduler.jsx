@@ -28,13 +28,16 @@ export default function Scheduler() {
   const [scheduled, setScheduled] = useState([]);
   const [activeWeekOffset, setActiveWeekOffset] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [errorState, setErrorState] = useState(null);
 
   const load = async () => {
     try {
       const data = await api.getCalendar();
       setScheduled(data || []);
+      setErrorState(null);
     } catch (e) {
       setScheduled([]);
+      setErrorState("Backend disconnected. Please ensure your API is running and VITE_API_URL is set.");
     }
   };
 
@@ -107,12 +110,18 @@ export default function Scheduler() {
         </div>
 
         {/* Date navigations */}
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="flex items-center gap-2 bg-surface border border-white/5 rounded-full p-2 shadow-lg backdrop-blur-md">
-            <button 
-              onClick={() => setActiveWeekOffset(o => o - 1)}
-              className="p-2.5 rounded-full hover:bg-white/10 text-muted hover:text-white transition-all duration-300 cursor-pointer"
-            >
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {errorState && (
+            <div className="bg-alert/10 border border-alert/20 text-alert px-4 py-2 rounded-xl text-xs font-bold animate-pulse shadow-[0_0_15px_rgba(255,87,87,0.2)]">
+              {errorState}
+            </div>
+          )}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-surface border border-white/5 rounded-full p-2 shadow-lg backdrop-blur-md">
+              <button 
+                onClick={() => setActiveWeekOffset(o => o - 1)}
+                className="p-2.5 rounded-full hover:bg-white/10 text-muted hover:text-white transition-all duration-300 cursor-pointer"
+              >
               <ChevronLeft size={18} />
             </button>
             <span className="text-[12px] font-bold px-3 text-white min-w-[160px] text-center select-none tracking-wide font-mono">
@@ -124,6 +133,7 @@ export default function Scheduler() {
             >
               <ChevronRight size={18} />
             </button>
+          </div>
           </div>
         </div>
       </div>

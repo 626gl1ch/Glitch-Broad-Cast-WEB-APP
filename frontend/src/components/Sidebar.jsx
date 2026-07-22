@@ -121,9 +121,19 @@ export default function Sidebar({ active, onChange }) {
         
         <button 
           onClick={() => window.dispatchEvent(new CustomEvent('open-feedback'))}
-          className="w-full mt-3 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-2 rounded-xl transition-colors"
+          className="w-full mt-3 flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-2 rounded-xl transition-colors cursor-pointer"
         >
           <MessageSquare size={14} /> Send Feedback
+        </button>
+
+        <button 
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+          className="w-full mt-2 flex items-center justify-center gap-2 bg-alert/5 hover:bg-alert/10 border border-alert/10 text-alert text-[10px] font-bold py-2 rounded-xl transition-colors cursor-pointer uppercase tracking-wider"
+        >
+           System Reset (Logout)
         </button>
       </div>
     </aside>
