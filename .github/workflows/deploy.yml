@@ -38,8 +38,6 @@ jobs:
         
       - name: Build Vite App
         working-directory: ./frontend
-        env:
-          VITE_API_URL: https://cloudflare-worker.626gl1ch.workers.dev
         run: npm run build
         
       - name: Setup Pages
