@@ -60,29 +60,59 @@ async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "captio
     const apiKey = keys.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Gemini API key is missing. Add it in Settings.");
     
-    // Auto-switch url depending on model prefix (Google vs Anthropic if misconfigured, though we assume gemini- here)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
+    const fallbackModels = [
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.6-flash"
+    ];
     
+    const userModel = geminiModel;
+    const modelsToTry = [userModel, ...fallbackModels.filter(m => m !== userModel)];
     const fullPrompt = `${systemPrompt}\n\n${SAFETY_POLICY_PROMPT}\n\nUser Request: ${userPrompt}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: fullPrompt }] }],
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-        ]
-      })
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error?.message || `Gemini HTTP ${res.status}`);
+    let lastError;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: fullPrompt }] }],
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+            ]
+          })
+        });
+        
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const errMsg = body.error?.message || `Gemini HTTP ${res.status}`;
+          if (res.status === 503 || res.status === 429 || errMsg.toLowerCase().includes("overloaded")) {
+            console.warn(`Gemini model ${modelName} unavailable (HTTP ${res.status}). Trying next...`);
+            lastError = new Error(errMsg);
+            continue;
+          }
+          throw new Error(errMsg);
+        }
+        
+        const data = await res.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } catch (err) {
+        lastError = err;
+        if (err.message && (err.message.includes("503") || err.message.includes("429") || err.message.toLowerCase().includes("overloaded"))) {
+           continue;
+        }
+        throw err;
+      }
     }
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    throw lastError;
   }
 
   // 2. CLAUDE (ANTHROPIC) ENGINE

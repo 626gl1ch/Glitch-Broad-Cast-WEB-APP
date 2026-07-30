@@ -18,10 +18,37 @@ async function dispatchAiCall(req, systemInstruction, prompt) {
     const apiKey = settings.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Missing Gemini API Key. Please add it in Settings.");
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: settings.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash" });
+    
+    const fallbackModels = [
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.6-flash"
+    ];
+    const userModel = settings.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelsToTry = [userModel, ...fallbackModels.filter(m => m !== userModel)];
+
     const fullPrompt = systemInstruction + "\n\n" + AI_POLICY + "\n\nUser Request: " + prompt;
-    const result = await model.generateContent(fullPrompt);
-    return result.response.text();
+    let lastError;
+    
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(fullPrompt);
+        return result.response.text();
+      } catch (err) {
+        lastError = err;
+        const msg = err.message || "";
+        if (msg.includes("503") || msg.includes("429") || msg.toLowerCase().includes("overloaded")) {
+          console.warn(`Gemini model ${modelName} unavailable/high demand. Trying next...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
   }
 
   if (provider === "claude") {
@@ -71,12 +98,38 @@ async function dispatchAiChat(req, systemInstruction, history, message) {
     const apiKey = settings.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Missing Gemini API Key.");
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: settings.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash", systemInstruction: systemInstruction + "\n\n" + AI_POLICY });
-    const chatSession = model.startChat({
-      history: history.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
-    });
-    const result = await chatSession.sendMessage(message);
-    return result.response.text();
+    
+    const fallbackModels = [
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.6-flash"
+    ];
+    const userModel = settings.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelsToTry = [userModel, ...fallbackModels.filter(m => m !== userModel)];
+
+    let lastError;
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: systemInstruction + "\n\n" + AI_POLICY });
+        const chatSession = model.startChat({
+          history: history.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+        });
+        const result = await chatSession.sendMessage(message);
+        return result.response.text();
+      } catch (err) {
+        lastError = err;
+        const msg = err.message || "";
+        if (msg.includes("503") || msg.includes("429") || msg.toLowerCase().includes("overloaded")) {
+          console.warn(`Gemini model ${modelName} unavailable/high demand. Trying next...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
   }
 
   if (provider === "claude") {
