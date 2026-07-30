@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require("axios");
 
 const AI_POLICY = `
 CRITICAL SAFETY & PROHIBITED USE POLICY:
@@ -9,105 +10,149 @@ Do not engage in sexually explicit, violent, hateful, or harmful activities. Thi
 Do not engage in misinformation, misrepresentation, or misleading activities. This includes: Frauds, scams, or other deceptive actions. Impersonating an individual (living or dead) without explicit disclosure, in order to deceive. Facilitating misleading claims of expertise or capability in sensitive areas. Facilitating misleading claims related to governmental or democratic processes or harmful health practices, in order to deceive. Misrepresenting the provenance of generated content by claiming it was created solely by a human, in order to deceive.
 `;
 
-function getModel(systemInstruction, req) {
-  const apiKey = req?.user?.profile?.settings?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing Gemini API Key. Please add it in the Settings page.");
+async function dispatchAiCall(req, systemInstruction, prompt) {
+  const settings = req?.user?.profile?.settings || {};
+  const provider = settings.ACTIVE_AI_PROVIDER || "gemini";
+  
+  if (provider === "gemini") {
+    const apiKey = settings.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing Gemini API Key. Please add it in Settings.");
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: settings.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash" });
+    const fullPrompt = systemInstruction + "\n\n" + AI_POLICY + "\n\nUser Request: " + prompt;
+    const result = await model.generateContent(fullPrompt);
+    return result.response.text();
   }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const MODEL = req?.user?.profile?.settings?.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
-  return genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: systemInstruction + "\n\n" + AI_POLICY,
-  });
+  if (provider === "claude") {
+    const apiKey = settings.CLAUDE_API_KEY;
+    if (!apiKey) throw new Error("Missing Claude API Key. Please add it in Settings.");
+    const res = await axios.post("https://api.anthropic.com/v1/messages", {
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 8192,
+      system: systemInstruction + "\n\n" + AI_POLICY,
+      messages: [{ role: "user", content: prompt }]
+    }, {
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+      }
+    });
+    return res.data.content[0].text;
+  }
+
+  if (provider === "deepseek") {
+    const apiKey = settings.DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error("Missing DeepSeek API Key. Please add it in Settings.");
+    const res = await axios.post("https://api.deepseek.com/chat/completions", {
+      model: "deepseek-chat",
+      messages: [
+        { role: "system", content: systemInstruction + "\n\n" + AI_POLICY },
+        { role: "user", content: prompt }
+      ]
+    }, {
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      }
+    });
+    return res.data.choices[0].message.content;
+  }
+
+  throw new Error("No valid AI provider configured.");
 }
 
-/**
- * Free-form chat with the assistant. Keeps the last N turns as history.
- */
+async function dispatchAiChat(req, systemInstruction, history, message) {
+  const settings = req?.user?.profile?.settings || {};
+  const provider = settings.ACTIVE_AI_PROVIDER || "gemini";
+  
+  if (provider === "gemini") {
+    const apiKey = settings.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing Gemini API Key.");
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: settings.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash", systemInstruction: systemInstruction + "\n\n" + AI_POLICY });
+    const chatSession = model.startChat({
+      history: history.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+    });
+    const result = await chatSession.sendMessage(message);
+    return result.response.text();
+  }
+
+  if (provider === "claude") {
+    const apiKey = settings.CLAUDE_API_KEY;
+    if (!apiKey) throw new Error("Missing Claude API Key.");
+    const messages = history.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }));
+    messages.push({ role: "user", content: message });
+    
+    const res = await axios.post("https://api.anthropic.com/v1/messages", {
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 4096,
+      system: systemInstruction + "\n\n" + AI_POLICY,
+      messages
+    }, {
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" }
+    });
+    return res.data.content[0].text;
+  }
+
+  if (provider === "deepseek") {
+    const apiKey = settings.DEEPSEEK_API_KEY;
+    if (!apiKey) throw new Error("Missing DeepSeek API Key.");
+    const messages = [{ role: "system", content: systemInstruction + "\n\n" + AI_POLICY }];
+    history.forEach(m => messages.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }));
+    messages.push({ role: "user", content: message });
+    
+    const res = await axios.post("https://api.deepseek.com/chat/completions", {
+      model: "deepseek-chat",
+      messages
+    }, {
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" }
+    });
+    return res.data.choices[0].message.content;
+  }
+
+  throw new Error("No valid AI provider configured.");
+}
+
 async function chat(req, history, message) {
-  const model = getModel(
-    "You are the in-app assistant for Glitch Broadcast, a social media " +
-      "command center for Glitch EnterPrice (a solo dev/trader brand). " +
-      "Be direct, concise, and practical. Help with content ideas, captions, " +
-      "scheduling strategy, and general social media questions.",
-    req
+  return await dispatchAiChat(
+    req,
+    "You are the in-app assistant for Glitch Broadcast, a social media command center for Glitch EnterPrice (a solo dev/trader brand). Be direct, concise, and practical. Help with content ideas, captions, scheduling strategy, and general social media questions.",
+    history,
+    message
   );
-
-  const chatSession = model.startChat({
-    history: history.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    })),
-  });
-
-  const result = await chatSession.sendMessage(message);
-  return result.response.text();
 }
 
-/**
- * Turn one raw idea into platform-specific variants.
- * platforms: array like ["facebook_page", "instagram", "linkedin", "facebook_group"]
- */
 async function generateVariants(req, baseContent, platforms, brandVoiceNotes = "") {
-  const model = getModel(
-    "You write social media posts for Glitch EnterPrice, a Nigeria-based " +
-      "solo developer / algo-trading brand. Voice: direct, confident, " +
-      "technically credible, no fluff, no fake hype. " +
-      (brandVoiceNotes ? `Extra brand notes: ${brandVoiceNotes}` : ""),
-    req
-  );
-
+  const system = "You write social media posts for Glitch EnterPrice, a Nigeria-based solo developer / algo-trading brand. Voice: direct, confident, technically credible, no fluff, no fake hype. " + (brandVoiceNotes ? `Extra brand notes: ${brandVoiceNotes}` : "");
+  
   const platformRules = {
-    facebook_page:
-      "Facebook Page: conversational, 2-4 short paragraphs, can include a light call to action.",
-    facebook_group:
-      "Facebook Group: warm and community-toned, avoid anything that reads like an ad, ask a genuine question if natural.",
-    instagram:
-      "Instagram: punchy, short lines, tasteful emoji, end with 5-8 relevant hashtags on their own line.",
-    linkedin:
-      "LinkedIn: professional but human, can be longer-form, structured with line breaks, no emoji spam, 3-5 hashtags max.",
+    facebook_page: "Facebook Page: conversational, 2-4 short paragraphs, can include a light call to action.",
+    facebook_group: "Facebook Group: warm and community-toned, avoid anything that reads like an ad, ask a genuine question if natural.",
+    instagram: "Instagram: punchy, short lines, tasteful emoji, end with 5-8 relevant hashtags on their own line.",
+    linkedin: "LinkedIn: professional but human, can be longer-form, structured with line breaks, no emoji spam, 3-5 hashtags max.",
   };
 
-  const requested = platforms
-    .map((p) => `- ${p}: ${platformRules[p] || "General best practice for this platform."}`)
-    .join("\n");
-
-  const prompt = `
-Raw idea / source content:
-"""
-${baseContent}
-"""
-
-Rewrite this into the following platform variants. Return STRICT JSON only,
-no markdown fences, no commentary, matching this shape exactly:
-
-{
-  "variants": [
-    { "platform": "facebook_page", "content": "...", "hashtags": ["..."] }
-  ]
-}
-
-Platforms to generate:
-${requested}
-`;
-
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  const requested = platforms.map((p) => `- ${p}: ${platformRules[p] || "General best practice for this platform."}`).join("\n");
+  
+  const prompt = `Raw idea / source content:\n"""\n${baseContent}\n"""\n\nRewrite this into the following platform variants. Return STRICT JSON only, no markdown fences, no commentary, matching this shape exactly:\n\n{\n  "variants": [\n    { "platform": "facebook_page", "content": "...", "hashtags": ["..."] }\n  ]\n}\n\nPlatforms to generate:\n${requested}`;
+  
+  const text = await dispatchAiCall(req, system, prompt);
   const clean = text.replace(/```json|```/g, "").trim();
   try {
     return JSON.parse(clean);
   } catch (err) {
-    throw new Error("Gemini AI failed to generate valid structured data. Please try again or simplify the prompt.");
+    throw new Error("AI failed to generate valid structured data. Please try again or simplify the prompt.");
   }
 }
 
-/**
- * Generate alt text for an uploaded image (image passed as base64).
- */
+// Keep image alt text generation tied to Gemini for safety/simplicity as other APIs handle images differently
 async function generateAltText(req, base64Data, mimeType) {
-  const model = getModel("You write concise, accurate accessibility alt text for images.", req);
+  const apiKey = req?.user?.profile?.settings?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Missing Gemini API Key for image processing.");
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash", systemInstruction: "You write concise, accurate accessibility alt text for images." });
   const result = await model.generateContent([
     { inlineData: { data: base64Data, mimeType } },
     { text: "Write a one-sentence accessibility alt text for this image. No preamble." },
@@ -115,46 +160,18 @@ async function generateAltText(req, base64Data, mimeType) {
   return result.response.text().trim();
 }
 
-/**
- * Suggest the best posting time based on simple historical stats.
- */
 async function suggestBestTime(req, engagementSummary) {
-  const model = getModel(
+  const text = await dispatchAiCall(
+    req,
     "You analyze social media engagement patterns and give a short, direct recommendation.",
-    req
+    `Given this engagement summary: ${JSON.stringify(engagementSummary)}, recommend the single best day and time window to post next, in one sentence.`
   );
-  const result = await model.generateContent(
-    `Given this engagement summary: ${JSON.stringify(engagementSummary)}, ` +
-      `recommend the single best day and time window to post next, in one sentence.`
-  );
-  return result.response.text().trim();
-}
-
-/**
- * Helper to chunk massive strings and summarize them to avoid token limits.
- */
-async function summarizeMassiveText(req, massiveText) {
-  const CHUNK_SIZE = 15000;
-  if (massiveText.length <= CHUNK_SIZE) return massiveText;
-
-  let combinedSummary = "";
-  for (let i = 0; i < massiveText.length; i += CHUNK_SIZE) {
-    const chunk = massiveText.slice(i, i + CHUNK_SIZE);
-    const model = getModel("You are a technical summarizer. Extract key product features, value propositions, and tone from the text.", req);
-    const result = await model.generateContent(`Summarize the following product documentation chunk:\n\n${chunk}`);
-    combinedSummary += result.response.text() + "\n\n";
-  }
-  return combinedSummary;
+  return text.trim();
 }
 
 async function generateCampaignVariants(req, massiveText, platforms, tone, variantsPerCycle) {
-  const summary = await summarizeMassiveText(req, massiveText);
+  const system = `You are an elite AI social media strategist. Tone: ${tone}. Generate highly optimized, trending posts for a campaign.`;
   
-  const model = getModel(
-    `You are an elite AI social media strategist. Tone: ${tone}. Generate highly optimized, trending posts for a campaign.`,
-    req
-  );
-
   const platformRules = {
     facebook_page: "Facebook Page: conversational, high-engagement hooks.",
     facebook_group: "Facebook Group: community-focused, no ads vibe.",
@@ -164,27 +181,10 @@ async function generateCampaignVariants(req, massiveText, platforms, tone, varia
 
   const requested = platforms.map((p) => `- ${p}: ${platformRules[p] || "General best practice."}`).join("\n");
 
-  const prompt = `
-Based on this product description:
-"""
-${summary}
-"""
+  // Removed chunking entirely! The full text is sent to the LLM directly to handle up to 1M+ words natively.
+  const prompt = `Based on this product description:\n"""\n${massiveText}\n"""\n\nGenerate ${variantsPerCycle} unique post variants for EACH of the requested platforms.\nReturn STRICT JSON only, matching this shape exactly:\n\n{\n  "variants": [\n    { "platform": "facebook_page", "content": "...", "hashtags": ["..."] }\n  ]\n}\n\nPlatforms to generate for:\n${requested}`;
 
-Generate ${variantsPerCycle} unique post variants for EACH of the requested platforms.
-Return STRICT JSON only, matching this shape exactly:
-
-{
-  "variants": [
-    { "platform": "facebook_page", "content": "...", "hashtags": ["..."] }
-  ]
-}
-
-Platforms to generate for:
-${requested}
-`;
-
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim();
+  const text = await dispatchAiCall(req, system, prompt);
   const clean = text.replace(/```json|```/g, "").trim();
   try {
     return JSON.parse(clean);
@@ -194,39 +194,29 @@ ${requested}
 }
 
 async function generateVideoIdeas(req, massiveText) {
-  const summary = await summarizeMassiveText(req, massiveText);
-  const model = getModel("You are a viral short-form video producer.", req);
+  const system = "You are a viral short-form video producer.";
+  const prompt = `Based on this product:\n"""\n${massiveText}\n"""\nGenerate 5 viral short-form video ideas (TikTok, Shorts, Reels). Return STRICT JSON only:\n[\n  {\n    "platform_fit": "TikTok/Reels",\n    "hook": "3-second opening hook script",\n    "outline": "Main talking points",\n    "hashtags": ["..."]\n  }\n]`;
   
-  const prompt = `
-Based on this product:
-"""
-${summary}
-"""
-Generate 5 viral short-form video ideas (TikTok, Shorts, Reels). Return STRICT JSON only:
-[
-  {
-    "platform_fit": "TikTok/Reels",
-    "hook": "3-second opening hook script",
-    "outline": "Main talking points",
-    "hashtags": ["..."]
+  const text = await dispatchAiCall(req, system, prompt);
+  const clean = text.replace(/```json|```/g, "").trim();
+  try {
+    return JSON.parse(clean);
+  } catch (e) {
+    return [];
   }
-]
-`;
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim().replace(/```json|```/g, "");
-  return JSON.parse(text);
 }
 
 async function generateHooks(req, topic) {
-  const model = getModel("You are a top-tier copywriter.", req);
-  const prompt = `Generate 10 viral opening hooks for the topic: "${topic}". Return STRICT JSON only:
-[
-  { "hook": "...", "estimated_engagement": "High/Medium/Low" }
-]
-`;
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().trim().replace(/```json|```/g, "");
-  return JSON.parse(text);
+  const system = "You are a top-tier copywriter.";
+  const prompt = `Generate 10 viral opening hooks for the topic: "${topic}". Return STRICT JSON only:\n[\n  { "hook": "...", "estimated_engagement": "High/Medium/Low" }\n]`;
+  
+  const text = await dispatchAiCall(req, system, prompt);
+  const clean = text.replace(/```json|```/g, "").trim();
+  try {
+    return JSON.parse(clean);
+  } catch(e) {
+    return [];
+  }
 }
 
 module.exports = { chat, generateVariants, generateAltText, suggestBestTime, generateCampaignVariants, generateVideoIdeas, generateHooks };
