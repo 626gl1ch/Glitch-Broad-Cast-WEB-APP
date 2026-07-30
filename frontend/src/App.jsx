@@ -26,9 +26,28 @@ const VIEWS = {
 };
 
 export default function App() {
-  const [active, setActive] = useState("dashboard");
+  const [active, setActive] = useState(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
+    return VIEWS[hash] ? hash : "dashboard";
+  });
   const [session, setSession] = useState(null);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+
+  // Sync state with URL Hash for Browser Back/Forward buttons
+  useEffect(() => {
+    if (window.location.hash !== `#${active}`) {
+      window.history.pushState(null, "", `#${active}`);
+    }
+  }, [active]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const hash = window.location.hash.replace("#", "");
+      setActive(VIEWS[hash] ? hash : "dashboard");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // CRITICAL FIX: Listen to nav-change custom events from child components
   useEffect(() => {
