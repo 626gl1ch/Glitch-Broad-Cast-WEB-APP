@@ -325,7 +325,7 @@ export default function Settings() {
         {/* AI Provider Switcher */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { id: "gemini", name: "Google Gemini AI", desc: "gemini-2.5-flash • Multimodal & High Speed", color: "border-purple-500/40 bg-purple-500/10" },
+            { id: "gemini", name: "Google Gemini AI", desc: "gemini-1.5-flash • Multimodal & High Speed", color: "border-purple-500/40 bg-purple-500/10" },
             { id: "claude", name: "Anthropic Claude AI", desc: "claude-3-5-sonnet • Advanced Reasoning", color: "border-amber-500/40 bg-amber-500/10" },
             { id: "deepseek", name: "DeepSeek AI Engine", desc: "deepseek-chat • Code & Quant Specialist", color: "border-cyan-500/40 bg-cyan-500/10" }
           ].map(p => (
@@ -371,7 +371,7 @@ export default function Settings() {
               type="text"
               value={envValues.GEMINI_MODEL || ""}
               onChange={(e) => handleEnvChange("GEMINI_MODEL", e.target.value)}
-              placeholder="Model: gemini-2.5-flash"
+              placeholder="Model: gemini-1.5-flash"
               className="w-full bg-surface border border-white/5 rounded-xl px-3 py-2 text-[11px] font-mono text-muted outline-none focus:border-accent/40"
             />
           </div>
@@ -462,10 +462,10 @@ export default function Settings() {
                   className="w-full bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent"
                 >
                   <option value="">Default (Global Model)</option>
-                  <option value="gemini-3.5-flash">Gemini 3.5 Flash (Fast/Cheap)</option>
-                  <option value="gemini-3.1-pro">Gemini 3.1 Pro (Deep Strategy)</option>
-                  <option value="gemini-3-flash">Gemini 3 Flash</option>
-                  <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Cheapest)</option>
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast/Cheap)</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Strategy)</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                  <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B (Cheapest)</option>
                 </select>
               </div>
             );

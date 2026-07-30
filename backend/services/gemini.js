@@ -15,7 +15,7 @@ function getModel(systemInstruction, req) {
     throw new Error("Missing Gemini API Key. Please add it in the Settings page.");
   }
   const genAI = new GoogleGenerativeAI(apiKey);
-  const MODEL = req?.user?.profile?.settings?.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const MODEL = req?.user?.profile?.settings?.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
   return genAI.getGenerativeModel({
     model: MODEL,

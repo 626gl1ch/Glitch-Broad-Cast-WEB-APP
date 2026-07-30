@@ -44,7 +44,7 @@ Do not generate content that:
 // Direct Client AI Dispatcher (Gemini, Claude, DeepSeek)
 async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "caption_gen") {
   const keys = await loadCachedSettings();
-  const provider = keys.glitch_active_ai || "gemini";
+  const provider = keys.ACTIVE_AI_PROVIDER || "gemini";
   
   let geminiConfig = [];
   try {
@@ -53,7 +53,7 @@ async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "captio
   } catch(e) {}
   
   const taskMap = geminiConfig.find(c => c.task_type === taskType);
-  const geminiModel = taskMap ? taskMap.model_id : (keys.GEMINI_MODEL || "gemini-2.5-flash");
+  const geminiModel = taskMap ? taskMap.model_id : (keys.GEMINI_MODEL || "gemini-1.5-flash");
 
   // 1. GEMINI ENGINE
   if (provider === "gemini") {
