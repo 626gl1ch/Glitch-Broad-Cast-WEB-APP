@@ -94,11 +94,12 @@ async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "captio
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           const errMsg = body.error?.message || `Gemini HTTP ${res.status}`;
-          const isOverloaded = res.status === 503 || res.status === 429 || res.status === 500 || 
+          const isOverloaded = res.status === 503 || res.status === 429 || res.status === 500 || res.status === 404 || 
                                errMsg.toLowerCase().includes("overloaded") || 
-                               errMsg.toLowerCase().includes("high demand");
+                               errMsg.toLowerCase().includes("high demand") || 
+                               errMsg.toLowerCase().includes("not found");
           if (isOverloaded) {
-            console.warn(`Gemini model ${modelName} unavailable (HTTP ${res.status}). Trying next...`);
+            console.warn(`Gemini model ${modelName} unavailable/not found (HTTP ${res.status}). Trying next...`);
             lastError = new Error(errMsg);
             continue;
           }
@@ -110,8 +111,8 @@ async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "captio
       } catch (err) {
         lastError = err;
         const msg = (err.message || "").toLowerCase();
-        const isOverloaded = msg.includes("503") || msg.includes("429") || msg.includes("500") || 
-                             msg.includes("overloaded") || msg.includes("high demand");
+        const isOverloaded = msg.includes("503") || msg.includes("429") || msg.includes("500") || msg.includes("404") ||
+                             msg.includes("overloaded") || msg.includes("high demand") || msg.includes("not found");
         if (isOverloaded) {
            continue;
         }

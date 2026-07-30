@@ -41,11 +41,11 @@ async function dispatchAiCall(req, systemInstruction, prompt) {
       } catch (err) {
         lastError = err;
         const msg = (err.message || "").toLowerCase();
-        const isOverloaded = msg.includes("503") || msg.includes("429") || msg.includes("500") || 
+        const isOverloaded = msg.includes("503") || msg.includes("429") || msg.includes("500") || msg.includes("404") ||
                              msg.includes("overloaded") || msg.includes("high demand") || 
-                             msg.includes("spikes in demand");
+                             msg.includes("spikes in demand") || msg.includes("not found") || msg.includes("invalid model");
         if (isOverloaded) {
-          console.warn(`Gemini model ${modelName} unavailable/high demand. Trying next...`);
+          console.warn(`Gemini model ${modelName} unavailable/not found. Trying next...`);
           continue;
         }
         throw err;
@@ -125,11 +125,11 @@ async function dispatchAiChat(req, systemInstruction, history, message) {
       } catch (err) {
         lastError = err;
         const msg = (err.message || "").toLowerCase();
-        const isOverloaded = msg.includes("503") || msg.includes("429") || msg.includes("500") || 
+        const isOverloaded = msg.includes("503") || msg.includes("429") || msg.includes("500") || msg.includes("404") ||
                              msg.includes("overloaded") || msg.includes("high demand") || 
-                             msg.includes("spikes in demand");
+                             msg.includes("spikes in demand") || msg.includes("not found") || msg.includes("invalid model");
         if (isOverloaded) {
-          console.warn(`Gemini model ${modelName} unavailable/high demand. Trying next...`);
+          console.warn(`Gemini model ${modelName} unavailable/not found. Trying next...`);
           continue;
         }
         throw err;
