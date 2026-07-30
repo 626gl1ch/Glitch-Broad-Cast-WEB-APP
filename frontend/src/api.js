@@ -327,6 +327,32 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
     } catch (e) { return []; }
   },
 
+  // --- Campaigns / Broadcast Studio API ---
+
+  createCampaign: async (name, description, platforms, tone, scheduleType, variantsPerCycle) => {
+    try {
+      return await safeReq("/campaign", { method: "POST", body: JSON.stringify({ name, description, platforms, tone, scheduleType, variantsPerCycle }) });
+    } catch (e) { return { ok: false, error: e.message }; }
+  },
+
+  fetchCampaigns: async () => {
+    try {
+      return await safeReq("/campaign");
+    } catch (e) { return []; }
+  },
+
+  generateVideoIdeas: async (description) => {
+    try {
+      return await safeReq("/campaign/video-ideas", { method: "POST", body: JSON.stringify({ description }) });
+    } catch (e) { return { ok: false, error: e.message }; }
+  },
+
+  generateHooks: async (topic) => {
+    try {
+      return await safeReq("/campaign/hooks", { method: "POST", body: JSON.stringify({ topic }) });
+    } catch (e) { return { ok: false, error: e.message }; }
+  },
+
   updateVariant: async (id, payload) => {
     try {
       return await safeReq(`/compose/variant/${id}`, { method: "PATCH", body: JSON.stringify(payload) });

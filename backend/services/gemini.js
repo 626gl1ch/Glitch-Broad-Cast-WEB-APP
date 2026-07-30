@@ -130,4 +130,103 @@ async function suggestBestTime(req, engagementSummary) {
   return result.response.text().trim();
 }
 
-module.exports = { chat, generateVariants, generateAltText, suggestBestTime };
+/**
+ * Helper to chunk massive strings and summarize them to avoid token limits.
+ */
+async function summarizeMassiveText(req, massiveText) {
+  const CHUNK_SIZE = 15000;
+  if (massiveText.length <= CHUNK_SIZE) return massiveText;
+
+  let combinedSummary = "";
+  for (let i = 0; i < massiveText.length; i += CHUNK_SIZE) {
+    const chunk = massiveText.slice(i, i + CHUNK_SIZE);
+    const model = getModel("You are a technical summarizer. Extract key product features, value propositions, and tone from the text.", req);
+    const result = await model.generateContent(`Summarize the following product documentation chunk:\n\n${chunk}`);
+    combinedSummary += result.response.text() + "\n\n";
+  }
+  return combinedSummary;
+}
+
+async function generateCampaignVariants(req, massiveText, platforms, tone, variantsPerCycle) {
+  const summary = await summarizeMassiveText(req, massiveText);
+  
+  const model = getModel(
+    `You are an elite AI social media strategist. Tone: ${tone}. Generate highly optimized, trending posts for a campaign.`,
+    req
+  );
+
+  const platformRules = {
+    facebook_page: "Facebook Page: conversational, high-engagement hooks.",
+    facebook_group: "Facebook Group: community-focused, no ads vibe.",
+    instagram: "Instagram: punchy, visual framing, 5-8 hashtags.",
+    linkedin: "LinkedIn: professional, thought leadership, 3-5 hashtags.",
+  };
+
+  const requested = platforms.map((p) => `- ${p}: ${platformRules[p] || "General best practice."}`).join("\n");
+
+  const prompt = `
+Based on this product description:
+"""
+${summary}
+"""
+
+Generate ${variantsPerCycle} unique post variants for EACH of the requested platforms.
+Return STRICT JSON only, matching this shape exactly:
+
+{
+  "variants": [
+    { "platform": "facebook_page", "content": "...", "hashtags": ["..."] }
+  ]
+}
+
+Platforms to generate for:
+${requested}
+`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim();
+  const clean = text.replace(/```json|```/g, "").trim();
+  try {
+    return JSON.parse(clean);
+  } catch (err) {
+    throw new Error("Failed to generate campaign variants. Try reducing the number of variants per cycle.");
+  }
+}
+
+async function generateVideoIdeas(req, massiveText) {
+  const summary = await summarizeMassiveText(req, massiveText);
+  const model = getModel("You are a viral short-form video producer.", req);
+  
+  const prompt = `
+Based on this product:
+"""
+${summary}
+"""
+Generate 5 viral short-form video ideas (TikTok, Shorts, Reels). Return STRICT JSON only:
+[
+  {
+    "platform_fit": "TikTok/Reels",
+    "hook": "3-second opening hook script",
+    "outline": "Main talking points",
+    "hashtags": ["..."]
+  }
+]
+`;
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim().replace(/```json|```/g, "");
+  return JSON.parse(text);
+}
+
+async function generateHooks(req, topic) {
+  const model = getModel("You are a top-tier copywriter.", req);
+  const prompt = `Generate 10 viral opening hooks for the topic: "${topic}". Return STRICT JSON only:
+[
+  { "hook": "...", "estimated_engagement": "High/Medium/Low" }
+]
+`;
+  const result = await model.generateContent(prompt);
+  const text = result.response.text().trim().replace(/```json|```/g, "");
+  return JSON.parse(text);
+}
+
+module.exports = { chat, generateVariants, generateAltText, suggestBestTime, generateCampaignVariants, generateVideoIdeas, generateHooks };

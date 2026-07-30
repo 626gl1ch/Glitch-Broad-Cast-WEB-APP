@@ -5,6 +5,7 @@ const fileUpload = require("express-fileupload");
 
 const chatRoutes = require("./routes/chat");
 const composeRoutes = require("./routes/compose");
+const campaignRoutes = require("./routes/campaign");
 const publishRoutes = require("./routes/publish");
 const groupsRoutes = require("./routes/groups");
 const filesRoutes = require("./routes/files");
@@ -29,6 +30,7 @@ app.use("/api/me", meRoutes);
 
 app.use("/api/chat", chatRoutes);
 app.use("/api/compose", composeRoutes);
+app.use("/api/campaign", campaignRoutes);
 app.use("/api/publish", publishRoutes);
 app.use("/api/groups", groupsRoutes);
 app.use("/api/files", filesRoutes);
