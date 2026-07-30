@@ -73,20 +73,38 @@ export default function Scheduler() {
     }
   };
 
-  // Group events by day of week
+  // Group events by day of week and ensure they fall in the active week
   const getEventsByDay = (dayName) => {
+    const today = new Date();
+    today.setDate(today.getDate() + activeWeekOffset * 7);
+    
+    // Get start of active week (Monday)
+    const dayOfWeek = today.getDay() || 7; // Make Sunday 7 instead of 0
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek + 1);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Get end of active week (Sunday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
     return scheduled.filter((event) => {
       const date = new Date(event.scheduled_for);
       const day = date.toLocaleDateString("en-US", { weekday: "long" });
-      return day === dayName;
+      
+      return day === dayName && date >= startOfWeek && date <= endOfWeek;
     });
   };
 
   const getWeekRangeLabel = () => {
     const today = new Date();
     today.setDate(today.getDate() + activeWeekOffset * 7);
-    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 1));
-    const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 7));
+    const dayOfWeek = today.getDay() || 7;
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek + 1);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
     return `${startOfWeek.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${endOfWeek.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
   };
 

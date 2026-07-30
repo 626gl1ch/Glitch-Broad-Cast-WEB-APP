@@ -465,9 +465,12 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
   // Schedule
   schedulePost: async (postId, scheduledFor) => {
     try {
+      if (!postId || postId.startsWith("v-")) {
+        throw new Error("Cannot schedule local-only content. Please ensure backend AI is active.");
+      }
       return await safeReq(`/schedule/${postId}`, { method: "POST", body: JSON.stringify({ scheduledFor }) });
-    } catch (_) {
-      return { ok: true, scheduledFor };
+    } catch (err) {
+      throw err;
     }
   },
   getCalendar: async (from, to) => {
