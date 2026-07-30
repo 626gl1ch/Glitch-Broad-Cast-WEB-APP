@@ -160,8 +160,7 @@ export default function Composer() {
   const handleScheduleSubmit = async (variant) => {
     if (!scheduleDate) return alert("Select a date and time first.");
     try {
-      const postId = variant.post_id || variant.id; // fallback if local
-      await api.schedulePost(postId, new Date(scheduleDate).toISOString());
+      await api.schedulePost(variant.id, new Date(scheduleDate).toISOString());
       
       alert(`Successfully scheduled for ${new Date(scheduleDate).toLocaleString()}!`);
       setSchedulingPostId(null);

@@ -97,6 +97,58 @@ export default function Scheduler() {
     });
   };
 
+
+  const handleQuickSchedule = async () => {
+    if (!qsContent.trim() || !qsDate) return alert("Content and date required.");
+    if (qsPlatform === "facebook_group" && !qsTargetGroup) return alert("Please select a target Facebook Group.");
+    
+    let targetUrl = "";
+    let targetName = "";
+    if (qsPlatform === "facebook_group") {
+      const g = storedGroups.find(x => x.id === qsTargetGroup);
+      if (g) {
+        targetUrl = g.url;
+        targetName = g.name;
+      }
+    }
+
+    try {
+      await api.quickSchedule({
+        content: qsContent,
+        platform: qsPlatform,
+        scheduledFor: new Date(qsDate).toISOString(),
+        targetGroupUrl: targetUrl,
+        targetGroupName: targetName
+      });
+      alert("Successfully scheduled targeted post!");
+      setShowQuickSchedule(false);
+      setQsContent("");
+      setQsDate("");
+      load(); // Reload calendar
+    } catch (err) {
+      alert("Error scheduling: " + err.message);
+    }
+  };
+
+  const openQuickScheduleForDay = (dayName) => {
+    const today = new Date();
+    today.setDate(today.getDate() + activeWeekOffset * 7);
+    const dayOfWeek = today.getDay() || 7;
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek + 1);
+    
+    const dayIndex = DAYS_OF_WEEK.indexOf(dayName);
+    const targetDate = new Date(startOfWeek);
+    targetDate.setDate(startOfWeek.getDate() + dayIndex);
+    targetDate.setHours(12, 0, 0, 0); // Default to noon
+    
+    const tzOffset = targetDate.getTimezoneOffset() * 60000;
+    const localIso = new Date(targetDate - tzOffset).toISOString().slice(0, 16);
+    
+    setQsDate(localIso);
+    setShowQuickSchedule(true);
+  };
+
   const getWeekRangeLabel = () => {
     const today = new Date();
     today.setDate(today.getDate() + activeWeekOffset * 7);
@@ -125,6 +177,12 @@ export default function Scheduler() {
           <p className="text-muted text-[13px] mt-1.5 font-light">
             View, reschedule, and force broadcast queued social media updates.
           </p>
+          <button
+            onClick={() => { setQsDate(""); setShowQuickSchedule(true); }}
+            className="mt-4 flex items-center gap-2 text-xs font-bold text-[#121215] bg-accent px-5 py-2.5 rounded-full hover:scale-105 transition-all shadow-[0_0_15px_rgba(176,139,255,0.2)] cursor-pointer"
+          >
+            <Plus size={16} /> Quick Schedule
+          </button>
         </div>
 
         {/* Date navigations */}
@@ -165,7 +223,11 @@ export default function Scheduler() {
           return (
             <div 
               key={day} 
-              className={`bg-surface rounded-[32px] p-5 flex flex-col gap-4 min-h-[400px] border transition-all duration-500 shadow-xl ${
+              onClick={(e) => {
+                if (e.target.closest('.event-card')) return;
+                openQuickScheduleForDay(day);
+              }}
+              className={`bg-surface rounded-[32px] p-5 flex flex-col gap-4 min-h-[400px] border transition-all duration-500 shadow-xl cursor-pointer hover:border-accent/20 ${
                 isToday ? "border-accent/30 shadow-[0_0_20px_rgba(176,139,255,0.1)]" : "border-white/5"
               }`}
             >
@@ -185,7 +247,7 @@ export default function Scheduler() {
                   <div
                     key={event.id}
                     onClick={() => setSelectedEvent(event)}
-                    className="p-4 rounded-[20px] bg-[#121215] border border-transparent hover:border-accent/40 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_15px_rgba(176,139,255,0.15)] space-y-3 relative overflow-hidden group shadow-inner"
+                    className="event-card p-4 rounded-[20px] bg-[#121215] border border-transparent hover:border-accent/40 cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_15px_rgba(176,139,255,0.15)] space-y-3 relative overflow-hidden group shadow-inner"
                   >
                     <div className="flex items-center justify-between relative z-10">
                       <span className="text-[10px] font-bold text-muted bg-surface px-2.5 py-1 rounded-full shadow-sm font-mono">
@@ -267,6 +329,87 @@ export default function Scheduler() {
         </div>
       )}
 
+
+      {/* Quick Schedule Modal */}
+      {showQuickSchedule && (
+        <div className="fixed inset-0 bg-[#121215]/80 backdrop-blur-xl flex items-center justify-center p-5 z-50 animate-fade-in">
+          <div className="bg-surface max-w-xl w-full rounded-[32px] p-8 space-y-6 border border-white/5 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <h3 className="text-base font-bold text-white uppercase flex items-center gap-3">
+                <Plus size={18} className="text-accent" /> Quick Schedule
+              </h3>
+              <button 
+                onClick={() => setShowQuickSchedule(false)}
+                className="text-muted hover:text-white text-xs bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full transition-all font-bold cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-muted uppercase font-mono mb-2 block">Platform</label>
+                <select
+                  value={qsPlatform}
+                  onChange={(e) => setQsPlatform(e.target.value)}
+                  className="w-full bg-[#121215] border border-transparent rounded-[16px] px-4 py-3 text-sm text-white outline-none focus:border-accent/50 cursor-pointer"
+                >
+                  <option value="facebook_group">Facebook Group (Targeted)</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="facebook_page">Facebook Page</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+              </div>
+
+              {qsPlatform === "facebook_group" && (
+                <div>
+                  <label className="text-xs font-bold text-muted uppercase font-mono mb-2 block">Target Group</label>
+                  <select
+                    value={qsTargetGroup}
+                    onChange={(e) => setQsTargetGroup(e.target.value)}
+                    className="w-full bg-[#121215] border border-transparent rounded-[16px] px-4 py-3 text-sm text-white outline-none focus:border-accent/50 cursor-pointer"
+                  >
+                    <option value="">-- Select a Group --</option>
+                    {storedGroups.map(g => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-bold text-muted uppercase font-mono mb-2 block">Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={qsDate}
+                  onChange={(e) => setQsDate(e.target.value)}
+                  className="w-full bg-[#121215] border border-transparent rounded-[16px] px-4 py-3 text-sm text-white outline-none focus:border-accent/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-muted uppercase font-mono mb-2 block">Post Content</label>
+                <textarea
+                  value={qsContent}
+                  onChange={(e) => setQsContent(e.target.value)}
+                  rows={4}
+                  placeholder="Type your targeted post here..."
+                  className="w-full bg-[#121215] border border-transparent rounded-[16px] px-4 py-3 text-sm text-white outline-none focus:border-accent/50 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-white/5">
+              <button
+                onClick={handleQuickSchedule}
+                className="flex items-center gap-2 text-xs font-bold text-[#121215] bg-accent px-6 py-3 rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+              >
+                <CalendarClock size={16} /> Schedule Post
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

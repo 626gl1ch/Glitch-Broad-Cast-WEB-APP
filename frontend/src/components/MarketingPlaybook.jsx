@@ -11,7 +11,7 @@ import {
   List,
   AlertCircle
 } from "lucide-react";
-import api from "../api";
+import { api } from "../api";
 
 export default function MarketingPlaybook() {
   const [activeTab, setActiveTab] = useState("broadcast");
