@@ -6,17 +6,19 @@ import { Sparkles, ExternalLink } from "lucide-react";
  * Automatically integrates with Google AdSense (ca-pub-XXXX) and stays resilient against adblockers.
  */
 export default function GoogleAdBanner({ slotId = "8821940192", format = "auto", className = "" }) {
-  const [adConfig, setAdConfig] = useState(() => {
-    try {
-      const keys = JSON.parse(localStorage.getItem("glitch_keys") || "{}");
-      return {
-        client: keys.GOOGLE_ADSENSE_CLIENT_ID || "ca-pub-3940256099942544",
-        slot: keys.GOOGLE_ADSENSE_SLOT_ID || slotId
-      };
-    } catch(e) {
-      return { client: "ca-pub-3940256099942544", slot: slotId };
-    }
-  });
+  const [adConfig, setAdConfig] = useState({ client: "ca-pub-3940256099942544", slot: slotId });
+  
+  useEffect(() => {
+    import("../api.js").then(({ api }) => {
+      api.getMe().then(me => {
+        const keys = me.profile?.settings || {};
+        setAdConfig({
+          client: keys.GOOGLE_ADSENSE_CLIENT_ID || "ca-pub-3940256099942544",
+          slot: keys.GOOGLE_ADSENSE_SLOT_ID || slotId
+        });
+      });
+    });
+  }, [slotId]);
 
   const [adBlocked, setAdBlocked] = useState(false);
 

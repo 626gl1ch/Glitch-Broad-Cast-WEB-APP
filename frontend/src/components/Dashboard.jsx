@@ -110,9 +110,13 @@ export default function Dashboard() {
 
     setReplyStatus(prev => ({ ...prev, [commentId]: "sending" }));
 
-    const keys = (() => {
-      try { return JSON.parse(localStorage.getItem("glitch_keys") || "{}"); } catch { return {}; }
-    })();
+    // Keys should be passed down or fetched; for now we'll fetch on demand
+    let keys = {};
+    try {
+      const { api } = await import("../api.js");
+      const me = await api.getMe();
+      keys = me.profile?.settings || {};
+    } catch(e) {}
 
     const comment = comments.find(c => c.id === commentId);
     const platform = comment?.platform;
@@ -190,15 +194,20 @@ export default function Dashboard() {
   const totalGroupQueued = stats.totalGroupQueued || 0;
   const totalReplies = activityLog.filter(a => a.type === "reply").length;
 
-  const connectedPlatforms = (() => {
-    const keys = (() => { try { return JSON.parse(localStorage.getItem("glitch_keys") || "{}"); } catch { return {}; } })();
-    return {
-      facebook: !!keys.META_PAGE_ACCESS_TOKEN,
-      instagram: !!keys.META_IG_BUSINESS_ACCOUNT_ID,
-      linkedin: !!keys.LINKEDIN_ACCESS_TOKEN,
-      groups: !!(JSON.parse(localStorage.getItem("glitch_fb_groups") || "[]").length)
-    };
-  })();
+  const [connectedPlatforms, setConnectedPlatforms] = useState({ facebook: false, instagram: false, linkedin: false, groups: false });
+  useEffect(() => {
+    import("../api.js").then(({ api }) => {
+      api.getMe().then(me => {
+        const k = me.profile?.settings || {};
+        setConnectedPlatforms({
+          facebook: !!k.META_PAGE_ACCESS_TOKEN,
+          instagram: !!k.META_IG_BUSINESS_ACCOUNT_ID,
+          linkedin: !!k.LINKEDIN_ACCESS_TOKEN,
+          groups: !!(JSON.parse(localStorage.getItem("glitch_fb_groups") || "[]").length)
+        });
+      });
+    });
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-[#121215] p-4 md:p-8 max-w-6xl mx-auto space-y-8 pb-32">

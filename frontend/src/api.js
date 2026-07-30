@@ -15,17 +15,20 @@ const getBaseUrl = () => {
   return null;
 };
 
-const getAppKeys = () => {
+// State cache for edge AI fallbacks
+let cachedSettings = null;
+
+const loadCachedSettings = async () => {
+  if (cachedSettings) return cachedSettings;
   try {
-    return JSON.parse(localStorage.getItem("glitch_keys") || "{}");
-  } catch(e) {
+    const me = await api.getMe();
+    cachedSettings = me.profile?.settings || {};
+    return cachedSettings;
+  } catch (e) {
     return {};
   }
 };
 
-const getActiveAiProvider = () => {
-  return localStorage.getItem("glitch_active_ai") || "gemini";
-};
 
 // Safety instruction enforcing Google Generative AI Prohibited Use Policy (Dec 17, 2024 update)
 const SAFETY_POLICY_PROMPT = `
@@ -40,16 +43,17 @@ Do not generate content that:
 
 // Direct Client AI Dispatcher (Gemini, Claude, DeepSeek)
 async function dispatchDirectAiCall(systemPrompt, userPrompt, taskType = "caption_gen") {
-  const keys = getAppKeys();
-  const provider = getActiveAiProvider();
+  const keys = await loadCachedSettings();
+  const provider = keys.glitch_active_ai || "gemini";
   
   let geminiConfig = [];
   try {
-    geminiConfig = JSON.parse(localStorage.getItem("glitch_gemini_config") || "[]");
+    const gc = await api.getGeminiConfig();
+    if (Array.isArray(gc)) geminiConfig = gc;
   } catch(e) {}
   
   const taskMap = geminiConfig.find(c => c.task_type === taskType);
-  const geminiModel = taskMap ? taskMap.model_id : (keys.GEMINI_MODEL || "gemini-3.5-flash");
+  const geminiModel = taskMap ? taskMap.model_id : (keys.GEMINI_MODEL || "gemini-2.5-flash");
 
   // 1. GEMINI ENGINE
   if (provider === "gemini") {
@@ -151,16 +155,11 @@ async function safeReq(path, options = {}) {
     throw new Error("Client-Edge local mode active.");
   }
 
-  const keys = getAppKeys();
   const jwt = localStorage.getItem("supabase_jwt");
   
   const headers = { 
     "Content-Type": "application/json",
-    "Authorization": jwt ? `Bearer ${jwt}` : "",
-    "x-gemini-key": keys.GEMINI_API_KEY || "",
-    "x-meta-page-token": keys.META_PAGE_ACCESS_TOKEN || "",
-    "x-meta-ig-id": keys.META_IG_BUSINESS_ACCOUNT_ID || "",
-    "x-linkedin-token": keys.LINKEDIN_ACCESS_TOKEN || ""
+    "Authorization": jwt ? `Bearer ${jwt}` : ""
   };
 
   try {
@@ -404,13 +403,11 @@ Respond with STRICT JSON mapping each platform to content and hashtags array:
       formData.append("folder", folder);
       const BASE = getBaseUrl();
       if (BASE) {
-        const keys = getAppKeys();
         const jwt = localStorage.getItem("supabase_jwt");
         const res = await fetch(`${BASE}/files/upload`, {
           method: "POST",
           headers: {
-            "Authorization": jwt ? `Bearer ${jwt}` : "",
-            "x-gemini-key": keys.GEMINI_API_KEY || ""
+            "Authorization": jwt ? `Bearer ${jwt}` : ""
           },
           body: formData
         });

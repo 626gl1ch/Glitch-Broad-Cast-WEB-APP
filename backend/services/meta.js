@@ -8,8 +8,8 @@ const GRAPH = "https://graph.facebook.com/v21.0";
  * NOT for Groups (Meta restricts Group posting via API).
  */
 async function postToFacebookPage(req, { message, imageUrl }) {
-  const pageId = req.headers['x-meta-page-id'] || process.env.META_PAGE_ID;
-  const token = req.headers['x-meta-page-token'] || process.env.META_PAGE_ACCESS_TOKEN;
+  const pageId = req?.user?.profile?.settings?.META_PAGE_ID || process.env.META_PAGE_ID;
+  const token = req?.user?.profile?.settings?.META_PAGE_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN;
 
   if (!pageId || !token) throw new Error("Missing Meta Page ID or Access Token.");
 
@@ -40,8 +40,8 @@ async function postToFacebookPage(req, { message, imageUrl }) {
  * container, then publish it.
  */
 async function postToInstagram(req, { caption, imageUrl, locationId }) {
-  const igUserId = req.headers['x-meta-ig-id'] || process.env.META_IG_BUSINESS_ACCOUNT_ID;
-  const token = req.headers['x-meta-page-token'] || process.env.META_PAGE_ACCESS_TOKEN;
+  const igUserId = req?.user?.profile?.settings?.META_IG_BUSINESS_ACCOUNT_ID || process.env.META_IG_BUSINESS_ACCOUNT_ID;
+  const token = req?.user?.profile?.settings?.META_PAGE_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN;
 
   if (!igUserId || !token) throw new Error("Missing Instagram Business ID or Access Token.");
   if (!imageUrl) throw new Error("Instagram requires an image URL to publish a post.");
@@ -72,7 +72,7 @@ async function postToInstagram(req, { caption, imageUrl, locationId }) {
  * Search for an Instagram location ID by name (used for location tagging).
  */
 async function searchInstagramLocation(req, query) {
-  const token = req.headers['x-meta-page-token'] || process.env.META_PAGE_ACCESS_TOKEN;
+  const token = req?.user?.profile?.settings?.META_PAGE_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN;
   if (!token) return [];
   try {
     const { data } = await axios.get(`${GRAPH}/search`, {

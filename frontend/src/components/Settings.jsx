@@ -36,7 +36,7 @@ const DEFAULT_BRAND_VOICES = [
 
 export default function Settings() {
   const [activeCategory, setActiveCategory] = useState("all");
-  const [activeAiProvider, setActiveAiProvider] = useState(() => localStorage.getItem("glitch_active_ai") || "gemini");
+  const [activeAiProvider, setActiveAiProvider] = useState("gemini");
   const [backendUrl, setBackendUrl] = useState(() => localStorage.getItem("backendUrl") || "");
   const [envValues, setEnvValues] = useState({});
   const [isSavingEnv, setIsSavingEnv] = useState(false);
@@ -59,38 +59,27 @@ export default function Settings() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const keys = JSON.parse(localStorage.getItem("glitch_keys") || "{}");
-        setEnvValues(keys);
-      } catch (err) {
-        setEnvValues({});
-      }
-      try {
         const { api } = await import("../api.js");
         const res = await api.getMe();
         if (res.profile && res.profile.settings) {
           setEnvValues(res.profile.settings);
-          localStorage.setItem("glitch_keys", JSON.stringify(res.profile.settings));
+          if (res.profile.settings.ACTIVE_AI_PROVIDER) {
+            setActiveAiProvider(res.profile.settings.ACTIVE_AI_PROVIDER);
+          }
+          if (res.profile.settings.BRAND_VOICES) {
+            try {
+              setCustomVoices(JSON.parse(res.profile.settings.BRAND_VOICES));
+            } catch(e) {}
+          }
         }
         
         const gc = await api.getGeminiConfig();
         if (gc && Array.isArray(gc)) {
           setGeminiConfig(gc);
-          localStorage.setItem("glitch_gemini_config", JSON.stringify(gc));
-        } else {
-          try {
-            setGeminiConfig(JSON.parse(localStorage.getItem("glitch_gemini_config") || "[]"));
-          } catch(e){}
         }
       } catch (e) {}
     };
     loadSettings();
-
-    try {
-      const savedVoices = JSON.parse(localStorage.getItem("glitch_brand_voices") || "[]");
-      setCustomVoices(savedVoices);
-    } catch (err) {
-      setCustomVoices([]);
-    }
   }, []);
 
   const saveBackendUrl = () => {
@@ -104,7 +93,7 @@ export default function Settings() {
 
   const handleAiProviderChange = (provider) => {
     setActiveAiProvider(provider);
-    localStorage.setItem("glitch_active_ai", provider);
+    handleEnvChange("ACTIVE_AI_PROVIDER", provider);
   };
 
   const handleEnvChange = (envKey, value) => {
@@ -126,12 +115,6 @@ export default function Settings() {
     setIsSavingEnv(true);
     setEnvMessage(null);
     try {
-      // 1. Always save to LocalStorage first so the app works immediately on device
-      localStorage.setItem("glitch_gemini_config", JSON.stringify(geminiConfig));
-      localStorage.setItem("glitch_keys", JSON.stringify(envValues));
-      localStorage.setItem("glitch_active_ai", activeAiProvider);
-      localStorage.setItem("glitch_brand_voices", JSON.stringify(customVoices));
-      
       let formattedBackendUrl = backendUrl ? backendUrl.trim() : "";
       if (formattedBackendUrl) {
         if (!formattedBackendUrl.startsWith("http://") && !formattedBackendUrl.startsWith("https://")) {
@@ -143,11 +126,11 @@ export default function Settings() {
         localStorage.removeItem("backendUrl");
       }
 
-      // 2. Attempt Backend Sync if API is accessible
-      let backendSynced = false;
+      // Sync to Backend
       try {
         const { api } = await import("../api.js");
-        const settingsRes = await api.updateSettings(envValues);
+        const finalEnvValues = { ...envValues, ACTIVE_AI_PROVIDER: activeAiProvider, BRAND_VOICES: JSON.stringify(customVoices) };
+        const settingsRes = await api.updateSettings(finalEnvValues);
         if (settingsRes && settingsRes.ok !== false && !settingsRes.localOnly) {
           backendSynced = true;
         }
@@ -163,9 +146,9 @@ export default function Settings() {
       }
 
       if (backendSynced) {
-        setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved locally & synced to backend database!" });
+        setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved securely to the cloud!" });
       } else {
-        setEnvMessage({ type: "success", text: "Settings, Configs, and API keys saved locally on device!" });
+        setEnvMessage({ type: "error", text: "Failed to connect to the cloud database." });
       }
       setTimeout(() => setEnvMessage(null), 3500);
     } catch (error) {
@@ -250,7 +233,6 @@ export default function Settings() {
 
     const updated = [...customVoices, newPreset];
     setCustomVoices(updated);
-    localStorage.setItem("glitch_brand_voices", JSON.stringify(updated));
     setNewVoiceLabel("");
     setNewVoiceInstructions("");
   };
@@ -258,7 +240,6 @@ export default function Settings() {
   const handleDeletePreset = (id) => {
     const updated = customVoices.filter(v => v.id !== id);
     setCustomVoices(updated);
-    localStorage.setItem("glitch_brand_voices", JSON.stringify(updated));
   };
 
   return (
@@ -302,7 +283,7 @@ export default function Settings() {
             <CheckCircle2 size={18} />
             <span>{envMessage.text}</span>
           </div>
-          <span className="text-[10px] font-mono uppercase bg-white/10 px-2.5 py-0.5 rounded-full">Local Device Sync</span>
+          <span className="text-[10px] font-mono uppercase bg-white/10 px-2.5 py-0.5 rounded-full">Cloud Sync</span>
         </div>
       )}
 

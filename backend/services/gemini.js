@@ -10,12 +10,12 @@ Do not engage in misinformation, misrepresentation, or misleading activities. Th
 `;
 
 function getModel(systemInstruction, req) {
-  const apiKey = req?.headers?.['x-gemini-key'] || process.env.GEMINI_API_KEY;
+  const apiKey = req?.user?.profile?.settings?.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing Gemini API Key in request headers or environment variables.");
+    throw new Error("Missing Gemini API Key. Please add it in the Settings page.");
   }
   const genAI = new GoogleGenerativeAI(apiKey);
-  const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const MODEL = req?.user?.profile?.settings?.GEMINI_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   return genAI.getGenerativeModel({
     model: MODEL,

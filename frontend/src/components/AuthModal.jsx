@@ -54,7 +54,7 @@ export default function AuthModal({ session, setSession }) {
         const authUser = { user, access_token: token };
         localStorage.setItem("glitch_user_session", JSON.stringify(authUser));
         if (me.profile.settings) {
-          localStorage.setItem("glitch_keys", JSON.stringify(me.profile.settings));
+          // keys are now fetched dynamically via api loadCachedSettings, no longer stored in localStorage
         }
         setSession(authUser);
       } else {
