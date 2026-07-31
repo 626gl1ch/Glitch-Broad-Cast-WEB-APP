@@ -43,10 +43,10 @@ export default function GoogleAdBanner({ slotId = "8821940192", format = "auto",
       </div>
 
       {/* Google AdSense Display Unit */}
-      <div className="w-full flex items-center justify-center min-h-[90px] relative">
+      <div className="w-full min-h-[90px] relative">
         <ins
-          className="adsbygoogle"
-          style={{ display: "block", width: "100%", textAlign: "center" }}
+          className={`adsbygoogle ${adBlocked ? 'hidden' : 'block'}`}
+          style={{ width: "100%", textAlign: "center" }}
           data-ad-client={adConfig.client}
           data-ad-slot={adConfig.slot}
           data-ad-format={format}

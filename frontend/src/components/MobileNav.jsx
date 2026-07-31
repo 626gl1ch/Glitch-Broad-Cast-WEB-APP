@@ -62,7 +62,7 @@ export default function MobileNav({ active, onChange }) {
                 }}
                 className="w-full flex items-center justify-center gap-4 px-5 py-4 rounded-3xl text-sm font-bold text-alert bg-alert/5 hover:bg-alert/10 transition-colors uppercase tracking-widest cursor-pointer"
               >
-                System Reset (Logout)
+                Logout
               </button>
             </div>
           </div>

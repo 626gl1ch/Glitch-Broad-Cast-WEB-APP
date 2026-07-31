@@ -133,7 +133,7 @@ export default function Sidebar({ active, onChange }) {
           }}
           className="w-full mt-2 flex items-center justify-center gap-2 bg-alert/5 hover:bg-alert/10 border border-alert/10 text-alert text-[10px] font-bold py-2 rounded-xl transition-colors cursor-pointer uppercase tracking-wider"
         >
-           System Reset (Logout)
+           Logout
         </button>
       </div>
     </aside>
